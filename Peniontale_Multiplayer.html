@@ -1,0 +1,2069 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>PENIONTALE — Hero Kampı</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a12;color:#e0e0e0;font-family:'Press Start 2P',monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;overflow:hidden;user-select:none;-webkit-user-select:none}
+#title{text-align:center;cursor:pointer;padding:36px}
+#title h1{font-size:26px;color:#ff69b4;text-shadow:0 0 12px #ff69b4,0 0 24px #7b2cbf;margin-bottom:16px}
+#title p{font-size:11px;color:#888;line-height:1.8}
+#game{display:none;position:relative}
+#viewport{width:640px;height:480px;border:4px solid #444;background:#1a1a2e;position:relative;overflow:hidden}
+#map{position:absolute;top:0;left:0;width:1280px;height:960px;background:linear-gradient(90deg,#16213e 1px,transparent 1px),linear-gradient(#16213e 1px,transparent 1px);background-size:40px 40px;background-color:#0f3460}
+.building{position:absolute;background:#4a3a2a;border:2px solid #6a5a4a}
+#player{position:absolute;width:42px;height:72px;z-index:20;background-size:contain;background-repeat:no-repeat;background-position:center bottom;transform-origin:center bottom}
+#player.idle{animation:breathe 1.7s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.04) scaleX(.97)}}
+#player.face-right{transform:scaleX(-1)}
+#player.idle.face-right{animation:breatheR 1.7s ease-in-out infinite}
+@keyframes breatheR{0%,100%{transform:scaleX(-1) scaleY(1)}50%{transform:scaleX(-.97) scaleY(1.04)}}
+.npc{position:absolute;width:28px;height:28px;border:2px solid #fff;border-radius:4px;z-index:15;display:flex;align-items:center;justify-content:center;font-size:9px;color:#000;font-weight:bold;transition:left .25s ease,top .25s ease}
+.npc.simoni{background:linear-gradient(135deg,#ff69b4,#00ffff,#9400d3)}
+.npc.linuinous{background:#4ecdc4}
+.npc.pemy{background:#ffe66d}
+.npc.rentimous{background:#a8e6cf}
+.npc.pinmy{background:#ffb6c1}
+.npc.vertimuru{background:#2d3436;color:#ddd}
+.npc.merkan{background:#6c5ce7}
+.npc.minil{background:#74b9ff}
+.npc.fenir{background:#dfe6e9}
+.npc.nini{background:#a29bfe;color:#111}
+.npc.meru{background:#e17055;color:#111}
+.npc.gomi{background:#fd79a8;color:#111}
+.npc.nemi{background:#81ecec;color:#111}
+.npc.yezi{background:#636e72;color:#eee}
+.npc.kenyless{background:linear-gradient(135deg,#fdcb6e,#e17055,#6c5ce7);color:#111}
+.npc.zinus{background:#b2bec3;color:#111}
+.npc.leri{background:#2d3436;color:#ddd}
+.npc .heart{position:absolute;top:-10px;right:-8px;font-size:10px;color:#ff69b4;text-shadow:0 0 4px #ff69b4}
+.star{position:absolute;width:16px;height:16px;background:#ffe66d;z-index:12;clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);animation:twinkle 1.2s ease-in-out infinite}
+.star.save{background:#fff;box-shadow:0 0 8px #fff}
+@keyframes twinkle{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.85)}}
+.butterfly{position:absolute;width:8px;height:8px;background:#ff69b4;border-radius:50% 0;z-index:14;pointer-events:none;opacity:.85}
+.board,.logstone,.circle{position:absolute;z-index:12;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff}
+.board{width:36px;height:28px;background:#8b6914;border:2px solid #c4a35a}
+.logstone{width:34px;height:34px;background:#3a3a5a;border:2px solid #888;border-radius:4px}
+.circle{width:64px;height:64px;border:3px dashed #c4a35a;border-radius:50%;background:rgba(196,163,90,.12);color:#c4a35a;font-size:8px}
+#vignette{position:absolute;inset:0;pointer-events:none;z-index:25;box-shadow:inset 0 0 60px rgba(148,0,211,0);transition:box-shadow .4s}
+#ui{width:640px;max-width:95vw;margin-top:8px}
+#status{display:flex;gap:12px;font-size:9px;color:#aaa;margin-bottom:6px;flex-wrap:wrap;align-items:center}
+#status .hp{color:#0f0}#status .bond{color:#ff69b4}#status .stars{color:#ffe66d}#status .pen{color:#a29bfe}
+#dialogue-box{background:#000;border:3px solid #fff;padding:14px 16px;min-height:96px;max-height:200px;overflow-y:auto;font-size:11px;line-height:1.6;display:none;white-space:pre-wrap;font-family:'Press Start 2P',monospace}
+#dialogue-box .name{color:#ff69b4;margin-bottom:6px;display:block;font-weight:bold;border-bottom:1px solid #ff69b4;padding-bottom:4px}
+#dialogue-box .shadow-line{color:#777;font-size:10px;margin-top:8px}
+#dialogue-box .choice{display:block;margin-top:8px;color:#ffe66d;cursor:pointer;padding:4px 0}
+#dialogue-box .choice:hover{color:#fff;background:rgba(255,230,109,0.15)}
+#hint{font-size:9px;color:#666;text-align:center;margin-top:8px}
+#minimap-label{position:absolute;top:6px;left:8px;font-size:9px;color:#aaa;z-index:50;background:rgba(0,0,0,.6);padding:4px 8px;pointer-events:auto;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#controls{display:none;width:640px;max-width:95vw;margin-top:10px;justify-content:space-between;align-items:flex-end;padding:0 8px;touch-action:none}
+.dpad{display:grid;grid-template-columns:56px 56px 56px;grid-template-rows:56px 56px 56px;gap:4px}
+.pad-btn,.act-btn{background:rgba(255,255,255,.12);border:2px solid #fff;color:#fff;font-family:'Press Start 2P',monospace;font-size:14px;border-radius:8px;display:flex;align-items:center;justify-content:center;touch-action:none}
+.pad-btn:active,.act-btn:active,.pad-btn.pressed,.act-btn.pressed{background:#fff;color:#000}
+.pad-up{grid-column:2;grid-row:1}.pad-left{grid-column:1;grid-row:2}.pad-right{grid-column:3;grid-row:2}.pad-down{grid-column:2;grid-row:3}
+.act-wrap{display:flex;gap:10px;align-items:center}
+.act-btn{width:72px;height:72px;border-radius:50%;font-size:16px;background:rgba(255,105,180,.25);border-color:#ff69b4}
+.act-btn.atk{background:rgba(231,76,60,.3);border-color:#e74c3c;font-size:18px}
+@media(max-width:800px){#controls{display:flex}#viewport{width:95vw;height:48vh;max-width:640px}#ui{width:95vw;max-width:640px}body{justify-content:flex-start;padding-top:6px}}
+
+  .campfire {
+    position: absolute; width: 48px; height: 48px; z-index: 16;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #fff3a0 0%, #ff9f43 25%, #ee5a24 55%, #2d3436 80%);
+    box-shadow: 0 0 22px #ff9f43, 0 0 48px rgba(255,159,67,0.55);
+    animation: firepulse 1.1s ease-in-out infinite;
+    border: 2px solid #ffa502;
+  }
+  @keyframes firepulse {
+    0%,100% { box-shadow: 0 0 14px #ff9f43, 0 0 28px rgba(255,159,67,0.35); }
+    50% { box-shadow: 0 0 22px #ffa502, 0 0 44px rgba(255,165,2,0.5); }
+  }
+  #night {
+    position: absolute; inset: 0; pointer-events: none; z-index: 24;
+    background: rgba(10,15,40,0); transition: background 1.2s;
+  }
+  #night.on { background: rgba(8,12,35,0.42); }
+  .npc.at-fire { filter: brightness(1.15); }
+
+
+/* multiplayer visuals */
+.remote-player{position:absolute;width:42px;height:72px;z-index:19;pointer-events:none;transition:left .08s linear,top .08s linear}
+.remote-avatar{position:absolute;left:7px;bottom:4px;width:28px;height:48px;background:linear-gradient(#7b2cbf,#ff69b4);border:2px solid #fff;border-radius:9px 9px 5px 5px;box-shadow:0 0 8px rgba(255,255,255,.25)}
+.remote-avatar:before{content:'';position:absolute;left:7px;top:-13px;width:10px;height:10px;border:2px solid #fff;border-radius:50%;background:#111}
+.remote-name{position:absolute;left:50%;transform:translateX(-50%);bottom:56px;white-space:nowrap;background:rgba(0,0,0,.78);border:1px solid #777;padding:3px 5px;font-size:7px;color:#fff}
+.remote-action{position:absolute;left:50%;transform:translateX(-50%);bottom:78px;white-space:nowrap;background:#000;border:1px solid #ff69b4;padding:4px 6px;font-size:7px;color:#ff69b4}
+
+/* combat visuals */
+.npc-hpbar{position:absolute;left:50%;transform:translateX(-50%);top:-12px;width:28px;height:4px;background:#333;border:1px solid #666;z-index:18;display:none;overflow:hidden}
+.npc-hpbar .fill{height:100%;background:#e74c3c;width:100%;transition:width .15s}
+.npc.shake{animation:npcshake .25s ease}
+@keyframes npcshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+.npc.warn{filter:brightness(1.4) drop-shadow(0 0 6px #e74c3c);transition:filter .2s}
+.hit-fx{position:absolute;z-index:30;font-size:14px;pointer-events:none;animation:hitpop .5s ease forwards}
+@keyframes hitpop{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.4) translateY(-12px)}}
+#dmg-flash{position:absolute;inset:0;pointer-events:none;z-index:28;background:rgba(180,0,0,0);transition:background .05s}
+#dmg-flash.on{background:rgba(180,0,0,0.35)}
+#kill-block{position:absolute;inset:0;pointer-events:none;z-index:40;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);filter:grayscale(1)}
+#kill-block.show{display:flex}
+#kill-block .msg{font-size:22px;color:#fff;text-shadow:0 0 12px #ff69b4;text-align:center;padding:20px}
+.laser-line{position:absolute;height:3px;z-index:22;pointer-events:none;transform-origin:left center;border-radius:2px}
+.laser-line.red{background:linear-gradient(90deg,#ff0000,#ff6666);box-shadow:0 0 8px #ff0000}
+.laser-line.blue{background:linear-gradient(90deg,#00aaff,#66ccff);box-shadow:0 0 8px #00aaff}
+.npc-clone{position:absolute;width:28px;height:28px;border:2px solid #fff;border-radius:4px;z-index:14;opacity:.7;pointer-events:none}
+.npc.held{box-shadow:0 0 0 2px #ff69b4,0 0 12px rgba(255,105,180,.6)}
+.npc.held::after{content:'⛓';position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:10px}
+
+
+/* secret admin */
+#admin-gate,#admin-panel{display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;background:rgba(0,0,0,.82);font-family:'Press Start 2P',monospace}
+#admin-gate.show,#admin-panel.show{display:flex}
+#admin-gate .box,#admin-panel .box{background:#0a0a12;border:3px solid #ff69b4;padding:20px 18px;max-width:92vw;width:340px;color:#e0e0e0}
+#admin-gate .box h3,#admin-panel .box h3{color:#ff69b4;font-size:11px;margin-bottom:14px;text-align:center}
+#admin-gate input{width:100%;padding:10px;background:#111;border:2px solid #555;color:#ffe66d;font-family:inherit;font-size:12px;letter-spacing:3px;text-align:center;outline:none}
+#admin-gate input:focus{border-color:#ff69b4}
+#admin-gate .err{color:#e74c3c;font-size:8px;margin-top:10px;text-align:center;min-height:12px}
+#admin-gate .row,#admin-panel .row{display:flex;gap:8px;margin-top:14px;justify-content:center}
+#admin-gate button,#admin-panel button{font-family:inherit;font-size:9px;padding:8px 12px;border:2px solid #fff;background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
+#admin-gate button:active,#admin-panel button:active{background:#fff;color:#000}
+#admin-panel .box{width:min(420px,94vw);max-height:80vh;overflow:auto}
+#admin-panel .note{font-size:8px;color:#888;line-height:1.7;margin:10px 0}
+#admin-panel textarea{width:100%;min-height:80px;background:#111;border:2px solid #555;color:#e0e0e0;font-family:inherit;font-size:9px;padding:8px;resize:vertical}
+#admin-panel .status{font-size:8px;line-height:1.6;margin-top:10px;min-height:12px}
+#admin-panel .status.ok{color:#6cf28e}
+#admin-panel .status.err{color:#e74c3c}
+#admin-panel .log{margin-top:10px;max-height:110px;overflow:auto;border-top:1px solid #333;padding-top:8px}
+#admin-panel .log div{font-size:7px;color:#888;line-height:1.6;margin-bottom:6px}
+#admin-panel button#admin-send{border-color:#ff69b4;background:rgba(255,105,180,.15)}
+#admin-panel button#admin-send:disabled{opacity:.5;cursor:default}
+.sign{position:absolute;width:26px;height:26px;z-index:14;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;background:rgba(255,230,109,.15);border:2px solid #ffe66d;border-radius:50%;box-shadow:0 0 10px rgba(255,230,109,.6);animation:signPulse 2s ease-in-out infinite}
+.sign::after{content:'✦'}
+@keyframes signPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+#minimap-label{cursor:default;user-select:none}
+
+</style>
+<script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+<div id="title">
+  <h1>PENIONTALE</h1>
+  <p>Hero Kampı</p>
+  <p style="margin-top:24px;color:#ff69b4">[ TIKLA VE GİR ]</p>
+  <p style="margin-top:28px;font-size:9px;color:#555;max-width:340px;margin-left:auto;margin-right:auto">
+    Turuncu parlayan daire = kamp ateşi (harita orta-alt).<br>
+    Ateşe yaklaş → E → gece.
+  </p>
+</div>
+<div id="game">
+  <div id="viewport">
+    <div id="minimap-label">HERO KAMPI — Ana Alan</div>
+    <div id="map">
+      <div id="player"></div>
+      <div class="npc simoni" data-id="simoni" style="left:480px;top:280px">S</div>
+      <div class="npc linuinous" data-id="linuinous" style="left:200px;top:200px">L</div>
+      <div class="npc pemy" data-id="pemy" style="left:720px;top:360px">P</div>
+      <div class="npc rentimous" data-id="rentimous" style="left:360px;top:480px">R</div>
+      <div class="npc pinmy" data-id="pinmy" style="left:560px;top:160px">Pi</div>
+      <div class="npc vertimuru" data-id="vertimuru" style="left:880px;top:240px">V</div>
+      <div class="npc merkan" data-id="merkan" style="left:640px;top:80px">M</div>
+      <div class="npc minil" data-id="minil" style="left:520px;top:600px">Mi</div>
+      <div class="npc fenir" data-id="fenir" style="left:1000px;top:400px">F</div>
+      <div class="npc nini" data-id="nini" style="left:300px;top:320px">N</div>
+      <div class="npc meru" data-id="meru" style="left:420px;top:200px">Me</div>
+      <div class="npc gomi" data-id="gomi" style="left:460px;top:240px">G</div>
+      <div class="npc nemi" data-id="nemi" style="left:280px;top:560px">Ne</div>
+      <div class="npc yezi" data-id="yezi" style="left:240px;top:600px">Y</div>
+      <div class="npc kenyless" data-id="kenyless" style="left:1100px;top:120px">K</div>
+      <div class="npc zinus" data-id="zinus" style="left:340px;top:360px">Z</div>
+      <div class="npc leri" data-id="leri" style="left:700px;top:60px">Le</div>
+      <div class="star" data-star="1" style="left:300px;top:400px"></div>
+      <div class="star" data-star="2" style="left:900px;top:500px"></div>
+      <div class="star" data-star="3" style="left:150px;top:700px"></div>
+      <div class="star save" data-save="1" style="left:600px;top:350px"></div>
+      <div class="board" data-board="1" style="left:400px;top:100px">!</div>
+      <div class="logstone" data-log="1" style="left:250px;top:520px">UL</div>
+      <div class="circle" data-circle="1" style="left:780px;top:180px">◎</div>
+      <div class="campfire" data-fire="1" style="left:640px;top:520px"></div>
+    </div>
+    <div id="night"></div>
+    <div id="vignette"></div>
+    <div id="dmg-flash"></div>
+    <div id="kill-block"><div class="msg"></div></div>
+  </div>
+  <div id="ui">
+    <div id="status">
+      <span>HP <span class="hp" id="hp-text">20</span>/20</span>
+      <span>Bağ <span class="bond" id="bond-text">0</span></span>
+      <span>★ <span class="stars" id="star-text">0</span></span>
+      <span>Penion <span class="pen" id="pen-text">—</span></span>
+    </div>
+    <div id="dialogue-box"></div>
+    <div id="hint">Oklar • E konuş • ⚔ vur • Kaçır: konuşmada seç • Ateş = gece</div>
+  </div>
+  <div id="controls">
+    <div class="dpad">
+      <button type="button" class="pad-btn pad-up" data-dir="up">▲</button>
+      <button type="button" class="pad-btn pad-left" data-dir="left">◀</button>
+      <button type="button" class="pad-btn pad-right" data-dir="right">▶</button>
+      <button type="button" class="pad-btn pad-down" data-dir="down">▼</button>
+    </div>
+    <div class="act-wrap">
+      <button type="button" class="act-btn atk" id="btn-atk">⚔</button>
+      <button type="button" class="act-btn" id="btn-talk">E</button>
+    </div>
+  </div>
+</div>
+<script>
+const SPRITES = {
+  front: 'data:image/png;base64,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',
+  back:  'data:image/png;base64,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',
+  side:  'data:image/png;base64,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'
+};
+
+const LS = 'penionTale.v2';
+const map = document.getElementById('map');
+const player = document.getElementById('player');
+const dialogueBox = document.getElementById('dialogue-box');
+const title = document.getElementById('title');
+const game = document.getElementById('game');
+const hint = document.getElementById('hint');
+const vignette = document.getElementById('vignette');
+const hpText = document.getElementById('hp-text');
+const bondText = document.getElementById('bond-text');
+const starText = document.getElementById('star-text');
+const penText = document.getElementById('pen-text');
+
+const MAP_W=1280, MAP_H=960;
+let px=320, py=320, facing='down';
+let keys={}, talking=false, moving=false;
+let combatLock = false; // kill-block / revive lock
+let lastAttackAt = 0;
+let heldId = null; // kaçırılan NPC id
+let heldSince = 0;
+let outsideTriggered = false;
+let playerHP=20, maxHP=20, menctionStars=0;
+let collectedStars={}, lastInteract=0, currentNpc=null;
+let firstFriend=null, silenceTimer=null, silenceFired=false;
+let yeminDone=false, yeminChoice=null;
+let pinmyScared=false, lastMoveSpeed=0, butterflies=[];
+let playerPenion=false;
+let secretHolder=null, secretKnown=false, secretShared=null;
+let betrayedId=null;
+let runCount=0, saveFlavors=[], isReload=false;
+
+// Character interaction state
+let speedMod = 1;           // 1 normal; >1 simoni boost; <1 pinmy side effect / pemy wind
+let speedModUntil = 0;
+let shadowUntil = 0;        // vertimuru invis
+let storageHint = false;    // linuinous near low hp
+let pemyLeaves = [];
+let rentTrails = [];
+let nearPemy = false;
+let isNight = false;
+let nightCycle = 0;
+let firePairsHeard = {};
+let overhearCooldown = 0;
+let fireSession = null; // current pair id at fire
+
+
+const SAVE_LINES = [
+  'Kararlılık doldu.','Hâlâ devam ediyorsun.','Kelebekler hâlâ orada.',
+  'Bu kayıt seni hatırlayacak.','Bugün bir söz verdin mi?','Menction yanıt verdi.',
+  'Gölgeler dinliyor.','Kamp seni gördü.'
+];
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(LS);
+    if(!raw){ runCount=1; return; }
+    const s = JSON.parse(raw);
+    isReload = true;
+    runCount = (s.runCount||1)+1;
+    menctionStars = s.menctionStars||0;
+    collectedStars = s.collectedStars||{};
+    playerPenion = !!s.playerPenion;
+    yeminDone = !!s.yeminDone;
+    yeminChoice = s.yeminChoice||null;
+    firstFriend = s.firstFriend||null;
+    secretHolder = s.secretHolder||null;
+    secretKnown = !!s.secretKnown;
+    secretShared = s.secretShared||null;
+    saveFlavors = s.saveFlavors||[];
+    if(s.bonds){ for(const id in s.bonds){ if(npcs[id]) npcs[id].bond = s.bonds[id]; } }
+    betrayedId = localStorage.getItem('penionTale.betrayed') || s.betrayedId || null;
+  }catch(e){ runCount=1; }
+}
+function saveState(extraFlavor){
+  const bonds={}; for(const id in npcs) bonds[id]=npcs[id].bond;
+  if(extraFlavor){ saveFlavors.push(extraFlavor); if(saveFlavors.length>5) saveFlavors.shift(); }
+  const s={ runCount, menctionStars, collectedStars, playerPenion, yeminDone, yeminChoice, firstFriend,
+    secretHolder, secretKnown, secretShared, betrayedId, bonds, saveFlavors, ts:Date.now() };
+  localStorage.setItem(LS, JSON.stringify(s));
+  if(betrayedId) localStorage.setItem('penionTale.betrayed', betrayedId);
+}
+
+const walls=[
+  {x:0,y:0,w:MAP_W,h:40},{x:0,y:MAP_H-40,w:MAP_W,h:40},
+  {x:0,y:0,w:40,h:MAP_H},{x:MAP_W-40,y:0,w:40,h:MAP_H},
+  {x:120,y:80,w:160,h:120},{x:900,y:60,w:200,h:140},
+  {x:100,y:600,w:180,h:160},{x:800,y:620,w:220,h:140},
+  {x:480,y:700,w:120,h:80}
+];
+
+const npcs={
+  simoni:{x:480,y:280,name:'Simoni',bond:0,alan:true,gender:'f',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,
+    lines:['Merhaba. Yeni misin kamp’ta?\nBen Simoni.','Unicorn ve kelebek... ikisi de bende.','Rentimous’u gördün mü? Çok hızlıdır.','Bir şey olursa yanındayım.\nSakin ol, gerisini bana bırakabilirsin.'],
+    resetLine:'…Seni daha önce görmüş gibi hissediyorum.',
+    secret:'Kelebekler bazen bana başkalarının korkusunu getiriyor.\nBunu kimseye söyleme.',
+    quiet:'...Hâlâ dinliyorsun. İyi.',
+    actEnergy:'Gökkuşağı enerjisi aktı.\nBir süre daha çeviksin.\n(Simoni hafifçe yoruldu.)',
+    index:0},
+  linuinous:{x:200,y:200,name:'Linuinous',bond:0,alan:false,gender:'m',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,
+    lines:['Ben Linu.\nLinuinous uzun kaçıyor.','Hasar yedikçe güçleniyorum.\nLimit yok — sanırım.','Aile ile anne-baba aynı değil.\nNini ise… farklı.','Kamp’a katılmayı düşünüyorum.\nHenüz net değil.'],
+    resetLine:'Yine yürüyorsun. İyi.',
+    secret:'İçimdeki ikinci ses bazen senden bahsediyor.\nKimseye söyleme.',
+    quiet:'(Alçak ses: ...güvendeyiz.)',
+    storageLine:'HP’n düşük.\nYanımdayken gücün depolanıyor gibi…\n22:22:22 — o kadar kalır, teoride.',
+    index:0},
+  pemy:{x:720,y:360,name:'Pemy',bond:0,alan:false,gender:'m',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,
+    lines:['...Ne var?\nAh. Yeni biri.','Eldivenlerim sarı. Havayı yüklerim. Dokunma.','Vertimuru’yu görürsen... söyleme bana.','İyi misin? ...Peki.'],
+    resetLine:'Sen… yine mi?',
+    secret:'Vertimuru’yu sevdiğimi herkes biliyor sanıyor.\nAma korktuğumu kimse bilmiyor. Söyleme.',
+    quiet:'...Konuşacaksan konuş.',
+    windLine:'Hava yüklü.\nYavaşla — itmiyorum, ama alanım var.',
+    index:0},
+  rentimous:{x:360,y:480,name:'Rentimous',bond:0,alan:false,gender:'m',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,
+    lines:['Hız benim işim. Bazen kontrolü kaybederim.','Simoni’yi korumak için buradayım.','500’ü geçince etraf parçalanır. Burada yavaşım.','Yarışmak istersen sonra.'],
+    resetLine:'Adımların tanıdık.',
+    secret:'Simoni’yi kaybetmekten korkuyorum.\nBunu ona bile söylemedim.',
+    quiet:'Beklemek de bir hızdır.',
+    raceLine:'Tamam. Kısa bir çizgi.\nFizik yok — sadece iz.\n500’ü hayal et, parçalanma görsel kalsın.',
+    index:0},
+  pinmy:{x:560,y:160,name:'Pinmy',bond:0,alan:true,baseX:560,baseY:160,gender:'f',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,
+    lines:['A-ah! Üzgünüm...\nBen Pinmy.','İyileştirebilirim. Biraz acıtır beni de.','Minil yok mu? Robotu bozulursa...','Sen naziksin. Teşekkür ederim.'],
+    resetLine:'Bana bir şey söyleyecektin ama… unuttum.',
+    secret:'Minil ölürse ben de... o yüzden robotundan korkuyorum.\nSöyleme.',
+    scaredLine:'Ç-çok hızlı geldin...\nBiraz bekler misin?',
+    slowLine:'Yavaş geldin. İyi oldu.\nArtık o kadar ürkütmüyorsun.',
+    quiet:'...Hâlâ buradasın. İyi.',
+    healSide:'İyileştin.\nAma ben… biraz aldım senden.\nBir süre yavaş yürüyeceksin.',
+    index:0, canHeal:true},
+  vertimuru:{x:880,y:240,name:'Vertimuru',bond:0,alan:true,gender:'f',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,
+    lines:['...Ne istiyorsun.','Gölgelerle işim var. Yaklaşma fazla.','Pemy’yi soruyorsan... o benim.\nKimseye söyleme.','Git. Ya da kal.'],
+    resetLine:'Yine mi sen?',
+    secret:'Gölgeler bana Pemy’nin rüyalarını gösteriyor.\nBunu kimse bilmemeli.',
+    shadow:['(Gölge: ...o yalan söylemiyor.)','(Gölge: Pemy’yi koru.)'],
+    quiet:'(Gölge: Hâlâ dinliyor.)',
+    shadowAct:'Gölgeye girdin.\nKısa süre… daha az görünürsün.\n10 saniye. Sonra çık.',
+    index:0},
+  merkan:{x:640,y:80,name:'Bay Merkan',bond:0,alan:false,gender:'m',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,clones:0,
+    lines:['Kampın ustasıyım. Bay Merkan.','Kurallara uy. Emirlere saygı göster.','Klonlarım var. Gerekirse çoğalırım.','Gez, öğren, güçlen.'],
+    resetLine:'Kayıtların var. Gördüm.',
+    secret:null, quiet:'Kararın hazır olana kadar bekleyebilirim.', index:0},
+  minil:{x:520,y:600,name:'Minil',bond:0,alan:false,gender:'m',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,
+    lines:['Robotum Linim… çalışıyor, sanırım.','Pinmy’yi korumaya çalışıyorum.','Devreler yalan söylemez. İnsanlar söyler.','Yedek parça lazım olursa söyle.'],
+    resetLine:'Sensörlerim seni daha önce kaydetmiş.',
+    secret:'Linim ölürse ben de ölürüm. Bu bir efsane değil.\nKimseye söyleme — panik olmasın.',
+    quiet:'...',
+    robotLine:'Linim’e dokunma.\nO ölürse… ben de. Codex’te yazıyor, şaka değil.',
+    index:0},
+  fenir:{x:1000,y:400,name:'Fenir',bond:0,alan:false,gender:'m',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,
+    lines:['Uçabiliyorum. Soğuğa dayanırım.','Hero Kampı beni garipser. Yine de iyilik isterim.','Kanatlarım nadir değil… ben nadirim.','Sadece geçiyorsan yolun açık.'],
+    resetLine:'Rüzgâr seni tanıyor.',
+    secret:null, quiet:'Rüzgâr da bekliyor.',
+    flyLine:'Uçamam sana veremem.\nAma soğuk seni üşütmez yanımdayken — biraz.',
+    index:0},
+  nini:{x:300,y:320,name:'Nini',bond:0,alan:true,gender:'f',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,
+    lines:['Lii… uyandım.\nNe olduğunu anlatman lazım — ama sonra.','Penion’um duygularla büyüyor.\nKorkma diye söylememiştim.','Annem… bilmesin.\nYanımda olman yetti.','Yarın Nemi’ye gidelim.\nBirlikte.'],
+    resetLine:'Yine buradasın. İyi.',
+    secret:'Penion’um var.\nAma bunu herkese söylemiyorum — özellikle sana henüz değil.',
+    quiet:'…Hâlâ dinliyorsun. Teşekkürler.',
+    index:0},
+  meru:{x:420,y:200,name:'Meru',bond:0,alan:false,gender:'f',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,
+    lines:['Sınıf başkanıyım.\nKarışma.','Çık demiştim.\nUnutmadın değil mi?','Gomi yanımda.\nİkimiz yeteriz.','Birine söylersen… iyi olmaz.'],
+    resetLine:'Yine sen.',
+    secret:null,
+    quiet:'…',
+    index:0},
+  gomi:{x:460,y:240,name:'Gomi',bond:0,alan:false,gender:'f',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,
+    lines:['Meru haklıysa ben de varım.','Çok konuşma.\nİzliyorum.','Etkinlik… planımız vardı.','Senin yüzünden ertelendi sayılır.'],
+    resetLine:'Hâlâ buradasın.',
+    secret:null,
+    quiet:'…Hm.',
+    index:0},
+  nemi:{x:280,y:560,name:'Nemi',bond:0,alan:false,gender:'m',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,
+    lines:['Chat ne zmaan gidioz — yani.\nCafe’de buluşalım.','Penion’um matematik.\n4 işlem, o kadar.','Yaratık dünyasında iyilerin de gücü olur.','Yezi yanımda. Mech’e izin o verir.'],
+    resetLine:'Yine takılıyorsun.',
+    secret:null,
+    quiet:'Tamam. Beklerim.',
+    index:0},
+  yezi:{x:240,y:600,name:'Yezi',bond:0,alan:false,gender:'m',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,
+    lines:['Robotlara komut verebiliyorum.\nMetal de şekil alır.','Nemi yanımda olsun yeter.','İzin verirsem mech’i başkası da kullanır.','Az konuşurum. İş konuşur.'],
+    resetLine:'Yine geldin.',
+    secret:null,
+    quiet:'…Tamam.',
+    index:0},
+  kenyless:{x:1100,y:120,name:'Kenyless',bond:0,alan:true,gender:'m',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,
+    lines:['Hoşgeldiniz, ufaklıklar.','Işıklar yanınca Penion görünür.\nİsim sormayın.','Bir Penion söyleyebilirim.\nİkincisi… garanti değil.','Hero Company’de işim bu.'],
+    resetLine:'Tekrar mı?',
+    secret:null,
+    quiet:'Işıklar dinlensin.',
+    index:0},
+  zinus:{x:340,y:360,name:'Zinus',bond:0,alan:false,gender:'m',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,
+    lines:['…Abi.','Yolu bilirim.\nKüpüm yanımda.','Çok konuşmam.','Simoni lolipop vermişti.'],
+    resetLine:'…',
+    secret:'Küp yedek hafızam.\nKırılırsa… o parça gider.',
+    quiet:'…',
+    index:0},
+  leri:{x:700,y:60,name:'Bay Leri',bond:0,alan:false,gender:'m',maxHP:5,hp:5,hitCount:0,ignoreUntil:0,
+    lines:['Dosyalar bitmez.\nSimoni yardımcı olur.','Kamp kaydı burada tutulur.','Acil değilse sonra gel.','Leri yeter. Bay demesen de olur.'],
+    resetLine:'Yine iş mi?',
+    secret:null,
+    quiet:'…Çalışıyorum.',
+    index:0}
+};
+
+const FIRE_PAIRS = [
+  { id:'sr', a:'simoni', b:'rentimous', lines:[
+    'Simoni: Bugün de yavaşsın.\nRentimous: Senin için yavaşım.',
+    'Rentimous: 500’ü geçersem…\nSimoni: Geçme. Yanımda kal.'
+  ]},
+  { id:'pv', a:'pemy', b:'vertimuru', lines:[
+    'Pemy: …Konuşma.\nVertimuru: Konuşmuyorum. Gölge konuşuyor.',
+    'Vertimuru: Korktuğunu biliyorum.\nPemy: Söyleme kimseye.'
+  ]},
+  { id:'lp', a:'linuinous', b:'pinmy', lines:[
+    'Linuinous: İyileştin mi?\nPinmy: S-sen hasar alma, lütfen.',
+    'Pinmy: Minil nerede?\nLinuinous: Atölyede. Güvendeyiz.'
+  ]},
+  { id:'mf', a:'minil', b:'fenir', lines:[
+    'Minil: Kanat verisi… nadir.\nFenir: Ben de nadirim. Garipsenme.',
+    'Fenir: Robotun soğuğa dayanır mı?\nMinil: Linim her şeye dayanır. Ben değil.'
+  ]},
+  { id:'sm', a:'simoni', b:'merkan', lines:[
+    'Merkan: Kurallar net.\nSimoni: İnsanlar net değil.',
+    'Simoni: Yeni üye yemin etti mi?\nMerkan: Biri etti. Biri etmedi.'
+  ]},
+  { id:'rv', a:'rentimous', b:'vertimuru', lines:[
+    'Rentimous: Gölgen hızlı mı?\nVertimuru: Senden hızlı.',
+    'Vertimuru: Simoni’yi koru.\nRentimous: Zaten koruyorum.'
+  ]},
+  { id:'pl', a:'pemy', b:'linuinous', lines:[
+    'Linuinous: İlk arkadaşım.\nPemy: …Biliyorum.',
+    'Pemy: Gücünü saklama.\nLinuinous: Sen de saklama.'
+  ]},
+  { id:'fp', a:'fenir', b:'pinmy', lines:[
+    'Fenir: Üşüyor musun?\nPinmy: B-biraz… teşekkürler.',
+    'Pinmy: Uçmak korkutucu.\nFenir: Düşmek daha korkutucu.'
+  ]}
+];
+
+
+const FIRE_SCENES = [
+  {
+    id: 'guven',
+    title: 'Güven',
+    when: () => true,
+    lines: [
+      'Simoni: Bu ateş… kampın kalbi gibi.',
+      'Rentimous: Kalp hızlı atmasın diye yavaşım.',
+      'Linuinous: Güven depolanır mı? Sorsam ayıp olmaz.',
+      'Pinmy: B-ben depolayamam… ama ısınırım.',
+      'Vertimuru: Gölgeler bile ateşten uzak durur. İyi.',
+      'Pemy: …Kalabalık. Ama kaçmıyorum. Bu da bir şey.',
+      'Merkan: Güven kuraldır. Ateş de öyle.',
+      'Minil: Linim sıcaklık okuyor. Herkes burada — kayıt tamam.',
+      'Fenir: Garipserlerdi. Şimdi yan yanayız.',
+      'Simoni: O zaman bu gece güvenle bitsin. Kimse yalnız kalmasın.'
+    ]
+  },
+  {
+    id: 'yorgunluk',
+    title: 'Yorgunluk',
+    when: () => true,
+    lines: [
+      'Rentimous: Koştum. Yetti.',
+      'Simoni: Otur. Yanımda. Yarın yine koşarsın.',
+      'Pemy: Eldivenler ağır bugün. Havayı taşımak da yoruyor.',
+      'Linuinous: Hasar yoksa depo boş. İyi bir boşluk.',
+      'Pinmy: Kimseyi iyileştirmedim… yine de yorgunum.',
+      'Vertimuru: Gölge taşımak da yorar. Sessizce.',
+      'Fenir: Uçmak yok. Kanatlar dinlensin.',
+      'Minil: Sensörler düşük güçte. Ben de.',
+      'Merkan: Yorgun üye hata yapar. Dinlenin — emir değil, tavsiye.',
+      'Simoni: Bugün kal. Yarın yeterince hızlı olursun.'
+    ]
+  },
+  {
+    id: 'sirlar',
+    title: 'Söylenmeyenler',
+    when: () => true,
+    lines: [
+      'Vertimuru: Ateş sır yakmaz. İnsan yakar.',
+      'Pemy: …Konuşma.',
+      'Simoni: Konuşmayacağız. Dinleyeceğiz.',
+      'Linuinous: İkinci ses susuyor. Nadir… ve rahatlatıcı.',
+      'Pinmy: Minil’e bir şey söyleyecektim. Sonra.',
+      'Minil: Robotlar sır tutar. Ben de tutarım.',
+      'Rentimous: Hızım sır değil. Korkum belki.',
+      'Fenir: Nadir olmak da bir sır gibi hissettiriyor.',
+      'Merkan: Kampın sırrı basit: birbirinizi bırakmayın.',
+      'Vertimuru: Bu kadar yeter. Gölge kapansın.'
+    ]
+  },
+  {
+    id: 'yeniuye',
+    title: 'Yeni üye',
+    when: () => true,
+    lines: [
+      'Merkan: Yeni üye ateşi gördü mü?',
+      'Simoni: Gördü. Belki dinliyor.',
+      'Linuinous: Hoş geldin demiştim. Tekrar: hoş geldin.',
+      'Pinmy: K-korkutmadık değil mi onu?',
+      'Rentimous: Yavaş yaklaştıysa Pinmy mutlu demektir.',
+      'Pemy: “İyi misin?” demiştim. Cevap… önemli değil. Sormuştum.',
+      'Vertimuru: Cevap vermese de burada. O da bir cevap.',
+      'Fenir: Garipsenmesin. Biz de bir zamanlar yabancıydık.',
+      'Minil: Kayıt: yeni üye ateşte. Dosyalandı.',
+      'Simoni: Kalırsa ateş büyür. Giderse… yine de ısındı.'
+    ]
+  },
+  {
+    id: 'yildizlar',
+    title: 'Menction',
+    when: () => (typeof menctionStars === 'number' && menctionStars > 0),
+    lines: [
+      'Merkan: Menction Star… oyuncak değil.',
+      'Linuinous: Bir parçası bile ağır. İçinde bir kapı var gibi.',
+      'Simoni: Kenyless olmadan tam olmaz. Biliyorum.',
+      'Pinmy: Yıldıza dokunmak… ürkütücü mü?',
+      'Rentimous: Dokunulur. Koşulmaz üstüne.',
+      'Pemy: Sarı eldivenle bile dikkat ister.',
+      'Vertimuru: Gölge yıldızı yutmaz. İyi ki.',
+      'Minil: Enerji imzası kayıtlı. Anomali yok — şimdilik.',
+      'Fenir: Gökyüzünde yoklar. Burada varlar. Tuhaf.',
+      'Merkan: Topladıysan saygı duy. Bitirelim bu konuyu.'
+    ]
+  },
+  {
+    id: 'yemin',
+    title: 'Yemin',
+    when: () => !!yeminDone,
+    lines: [
+      'Merkan: Yemin edildi. Kamp gördü.',
+      'Simoni: Kalacağını söyleyen… sözünü tutar umarım.',
+      'Rentimous: Söz hızdan ağırdır bazen.',
+      'Linuinous: Ben de bir söz verdim: korumak.',
+      'Pinmy: Yemin… korkutucu ama güzel.',
+      'Pemy: Söz verirsen tut. Tutamazsan verme.',
+      'Vertimuru: Ben yemin etmem. Dururum. O kadar.',
+      'Minil: Söz = kayıt. Silinmez olmalı.',
+      'Fenir: Kalmak da bir tür uçmak. Yere yakın.',
+      'Merkan: Yemin bozulursa ateş sönmez. Güven söner.'
+    ]
+  },
+  {
+    id: 'vedic_uzak',
+    title: 'Uzakta bir şey',
+    when: () => true,
+    lines: [
+      'Merkan: Dışarıda hareket var. Henüz kapıda değil.',
+      'Vertimuru: Gölgeler gerildi. Bilerek.',
+      'Rentimous: Koşmam. Önce bildiririm.',
+      'Simoni: Korkma. Yan yanayız.',
+      'Linuinous: Depo dolsun diye hasar aramıyorum.',
+      'Pemy: Satif dersen… fazla söyleme.',
+      'Pinmy: Korktum. Ama kaçmadım.',
+      'Fenir: Soğuk değil. Tehdit başka bir şey.',
+      'Minil: Linim alarm vermedi. Henüz.',
+      'Merkan: Ateş sönmesin. Konu bu. Bitti.'
+    ]
+  },
+  {
+    id: 'kucukmutluluk',
+    title: 'Küçük şeyler',
+    when: () => true,
+    lines: [
+      'Pinmy: Kıvılcım… güzel.',
+      'Simoni: Kelebekler kıvılcımı sever mi dersin?',
+      'Rentimous: Birini yakalama. Yavaş ol.',
+      'Linuinous: Küçük mutluluk da depolanır mı?',
+      'Pemy: …Belki. Bir anlığına.',
+      'Fenir: Kanadım kıvılcımdan uzak. Yine de… iyi.',
+      'Minil: Pinmy güldü. Kayıt: önemli.',
+      'Vertimuru: Gölgem bile yumuşadı. Tuhaf.',
+      'Merkan: Küçük şeyler kampı tutar. Unutmayın.',
+      'Simoni: O zaman bir kıvılcım daha. Ve bitsin.'
+    ]
+  }
+];
+
+function pickFireScene(){
+  const eligible = FIRE_SCENES.filter(s => {
+    try { return !s.when || s.when(); } catch(e){ return true; }
+  });
+  const list = eligible.length ? eligible : FIRE_SCENES;
+  // avoid immediate same scene
+  const last = firePairsHeard._lastSceneId;
+  let options = list.filter(s => s.id !== last);
+  if(!options.length) options = list;
+  const scene = options[Math.floor(Math.random() * options.length)];
+  firePairsHeard._lastSceneId = scene.id;
+  return scene;
+}
+
+
+const boardText='HERO KAMPI KURALLARI\n1. Emirlere uy.\n2. Birbirinizi koruyun.\n3. Satif görürsen bildir.\n4. Menction Star’a saygı duy.\n— Bay Merkan';
+const updateLogText='UPDATE LOG\n• Kamp ateşi: konulu sahneler, konu bitince biter, durumuna göre seçilir\n• API yok — offline, Codex’e bağlı\n• Sır/ihanet, kayıt, Sanctification, karakter etkileşimleri';
+
+function totalBond(){return Object.values(npcs).reduce((s,n)=>s+n.bond,0)}
+function updateStatus(){
+  hpText.textContent=playerHP; bondText.textContent=totalBond(); starText.textContent=menctionStars;
+  penText.textContent=playerPenion?'Var':'—';
+  document.querySelectorAll('.npc').forEach(el=>{
+    const id=el.dataset.id; if(!id||!npcs[id])return;
+    let h=el.querySelector('.heart');
+    if(npcs[id].bond>=2){ if(!h){h=document.createElement('span');h.className='heart';h.textContent='♥';el.appendChild(h);} }
+    else if(h)h.remove();
+  });
+  document.querySelectorAll('.star[data-star]').forEach(el=>{ if(collectedStars[el.dataset.star]) el.style.display='none'; });
+}
+function addressName(id){
+  const n=npcs[id];
+  if(betrayedId===id) return n.name+' (… )';
+  if(firstFriend===id) return n.name+' (seni hatırlıyor)';
+  return n.name;
+}
+function setSprite(){
+  player.classList.remove('face-right','idle');
+  if(facing==='up') player.style.backgroundImage=`url('${SPRITES.back}')`;
+  else if(facing==='down') player.style.backgroundImage=`url('${SPRITES.front}')`;
+  else { player.style.backgroundImage=`url('${SPRITES.side}')`; if(facing==='right') player.classList.add('face-right'); }
+  if(!moving) player.classList.add('idle');
+  player.style.opacity = (Date.now()<shadowUntil) ? '0.35' : '1';
+}
+function viewSize(){const v=document.getElementById('viewport');return{w:v.clientWidth||640,h:v.clientHeight||480}}
+function updateCamera(){
+  const {w,h}=viewSize();
+  let camX=px-w/2+21, camY=py-h/2+36;
+  camX=Math.max(0,Math.min(MAP_W-w,camX)); camY=Math.max(0,Math.min(MAP_H-h,camY));
+  map.style.transform=`translate(${-camX}px,${-camY}px)`;
+}
+function collides(nx,ny){
+  // oyuncu ayak alanı (alt kısım) — görsel geçişi engelle
+  const pw=36, ph=28;
+  const fx=nx+3, fy=ny+44;
+  for(const w of walls){
+    if(fx<w.x+w.w&&fx+pw>w.x&&fy<w.y+w.h&&fy+ph>w.y) return true;
+  }
+  for(const id in npcs){
+    if(id===heldId) continue; // tutulan peşinden gelsin, kilitlenmesin
+    const n=npcs[id];
+    // NPC katı kutu (biraz büyütülmüş)
+    const nx0=n.x-2, ny0=n.y-2, nw=32, nh=32;
+    if(fx<nx0+nw&&fx+pw>nx0&&fy<ny0+nh&&fy+ph>ny0) return true;
+  }
+  return false;
+}
+function checkAlan(){
+  let near=false;
+  for(const id in npcs){ const n=npcs[id]; if(!n.alan) continue;
+    if(Math.abs((px+21)-(n.x+14))<100&&Math.abs((py+36)-(n.y+14))<100){near=true;break;} }
+  vignette.style.boxShadow=near?'inset 0 0 50px rgba(148,0,211,.45)':'inset 0 0 60px rgba(148,0,211,0)';
+}
+function spawnButterflies(){
+  const n=npcs.simoni;
+  if(Math.abs((px+21)-(n.x+14))>90||Math.abs((py+36)-(n.y+14))>90){butterflies.forEach(b=>b.el.remove());butterflies=[];return;}
+  if(butterflies.length<5&&Math.random()<0.08){
+    const el=document.createElement('div');el.className='butterfly';
+    const bx=n.x+Math.random()*60-10,by=n.y+Math.random()*40-10;
+    el.style.left=bx+'px';el.style.top=by+'px';map.appendChild(el);
+    butterflies.push({el,x:bx,y:by,t:0});
+  }
+  butterflies.forEach(b=>{b.t+=0.05;b.x+=Math.sin(b.t)*0.6;b.y+=Math.cos(b.t*0.7)*0.4;b.el.style.left=b.x+'px';b.el.style.top=b.y+'px';});
+}
+function updatePemyWind(){
+  const n=npcs.pemy;
+  nearPemy = Math.abs((px+21)-(n.x+14))<70 && Math.abs((py+36)-(n.y+14))<70;
+  if(nearPemy && Date.now()>speedModUntil) speedMod = 0.72;
+  else if(Date.now()>speedModUntil && !nearPemy && speedMod<1 && speedMod>0.5) speedMod = 1;
+  if(nearPemy && pemyLeaves.length<8 && Math.random()<0.12){
+    const el=document.createElement('div');
+    el.style.cssText='position:absolute;width:5px;height:5px;background:#ffe66d;border-radius:1px;z-index:13;opacity:0.7;pointer-events:none';
+    const lx=n.x+Math.random()*40, ly=n.y+Math.random()*30;
+    el.style.left=lx+'px'; el.style.top=ly+'px'; map.appendChild(el);
+    pemyLeaves.push({el,x:lx,y:ly,vy:-0.4-Math.random()*0.5, vx:(Math.random()-0.5)*0.8, life:60});
+  }
+  for(let i=pemyLeaves.length-1;i>=0;i--){
+    const L=pemyLeaves[i]; L.x+=L.vx; L.y+=L.vy; L.life--;
+    L.el.style.left=L.x+'px'; L.el.style.top=L.y+'px';
+    if(L.life<=0){ L.el.remove(); pemyLeaves.splice(i,1); }
+  }
+}
+function spawnRentTrail(){
+  if(rentTrails.length>20) return;
+  const el=document.createElement('div');
+  el.style.cssText='position:absolute;width:10px;height:3px;background:rgba(168,230,207,0.5);z-index:11;pointer-events:none';
+  el.style.left=(px+10)+'px'; el.style.top=(py+50)+'px'; map.appendChild(el);
+  rentTrails.push({el, life:25});
+  for(let i=rentTrails.length-1;i>=0;i--){
+    const t=rentTrails[i]; t.life--; t.el.style.opacity=String(t.life/25);
+    if(t.life<=0){ t.el.remove(); rentTrails.splice(i,1); }
+  }
+}
+function clearSilence(){if(silenceTimer){clearTimeout(silenceTimer);silenceTimer=null;}silenceFired=false;}
+function armSilence(id){
+  clearSilence();
+  silenceTimer=setTimeout(()=>{
+    if(!talking||currentNpc!==id||silenceFired)return;
+    silenceFired=true; const n=npcs[id]; if(!n||!n.quiet)return;
+    showDialogue(addressName(id)+(n.bond>=2?' ♥':''), n.lines[n.index]+'\n\n'+n.quiet, id==='vertimuru'?n.quiet:null);
+  },2800);
+}
+function showDialogue(name,text,extra,choices){
+  dialogueBox.style.display='block';
+  let h=`<span class="name">${name}</span>${text}`;
+  if(extra) h+=`<div class="shadow-line">${extra}</div>`;
+  if(choices){ choices.forEach(c=>{ h+=`<span class="choice" data-choice="${c.id}">▸ ${c.label}</span>`; }); }
+  dialogueBox.innerHTML=h;
+  if(choices){ dialogueBox.querySelectorAll('.choice').forEach(el=>{ el.onclick=()=>pickChoice(el.dataset.choice); }); }
+}
+function closeDialogue(){ talking=false; currentNpc=null; clearSilence(); dialogueBox.style.display='none';
+  hint.textContent='Oklar • E konuş • ⚔ vur • Kaçır: konuşmada seç • Ateş = gece'; }
+function tryGiveSecret(id){
+  const n=npcs[id];
+  if(!n.secret||n.bond<3||secretKnown) return false;
+  secretHolder=id; secretKnown=true; saveState();
+  showDialogue(addressName(id)+' ♥', n.secret+'\n\nBunu kimseye söyleme.\nAma… söylersen, ben bilirim.');
+  currentNpc='__empty'; hint.textContent='E — kapat'; return true;
+}
+function startDialogue(id){
+  if(Date.now() < (npcs[id]?.ignoreUntil||0)){ talking=true; currentNpc='__empty'; showDialogue(npcs[id].name,'…'); hint.textContent='E — kapat'; return; }
+  if(Date.now() < (npcs[id]?.coldUntil||0)){
+    talking=true; currentNpc='__empty';
+    const coldLines = {
+      simoni:'…Şimdilik uzak dur.',
+      linuinous:'Gücümü senden saklıyorum.',
+      pemy:'…Hava yüklü. Uzak dur.',
+      rentimous:'Hızımı sana harcamam.',
+      pinmy:'…Lütfen yaklaşma.',
+      vertimuru:'Gölge hâlâ hatırlıyor.',
+      merkan:'Kayıt açık. Konuşma sırası sende değil.',
+      minil:'Linim seni tarıyor. Uzak dur.',
+      fenir:'Rüzgâr senden yana değil.',
+      nini:'…Şu an konuşmak istemiyorum, Lii.',
+      meru:'Sana bir şey demiyorum. Uzak dur.',
+      gomi:'…Meru haklıydı.',
+      nemi:'Tamam. Bir süre aralık verelim.',
+      yezi:'…Mech kapalı. Uzak dur.',
+      kenyless:'Işıklar sönük. Sonra gel.',
+      zinus:'…',
+      leri:'Dosya saati. Çık.'
+    };
+    showDialogue(npcs[id].name, coldLines[id]||'…');
+    hint.textContent='E — kapat'; return;
+  }
+  talking=true; currentNpc=id; silenceFired=false;
+  const n=npcs[id];
+  if(firstFriend===null) firstFriend=id;
+  if(betrayedId===id){ showDialogue(n.name,'…'); currentNpc='__empty'; hint.textContent='E — kapat'; return; }
+  if(n.index===0 && n.bond<3){ n.bond=Math.min(3,n.bond+1); updateStatus(); saveState(); }
+  if(isReload && n.resetLine && !n._resetSaid){
+    n._resetSaid=true; showDialogue(addressName(id), n.resetLine); armSilence(id); hint.textContent='E — devam'; return;
+  }
+  if(n.bond>=3 && n.secret && !secretKnown){ if(tryGiveSecret(id)) return; }
+  if(id==='pinmy' && pinmyScared && n.bond>=1){
+    showDialogue(addressName(id), n.scaredLine); pinmyScared=false; armSilence(id); hint.textContent='E — devam'; return;
+  }
+  if(id==='pinmy' && n.bond>=2 && !n._slowSaid){
+    n._slowSaid=true; showDialogue(addressName(id)+' ♥', n.slowLine); armSilence(id); hint.textContent='E — devam'; return;
+  }
+  if(id==='merkan' && !yeminDone && n.bond>=2){
+    showDialogue(addressName(id), 'Bir sorum var.\nBurada kalacak mısın, yoksa sadece geçiyor musun?', null, [
+      {id:'stay',label:'Kalacağım'},{id:'pass',label:'Sadece geçiyorum'}
+    ]);
+    hint.textContent='Seçeneğe dokun'; return;
+  }
+  if((id==='merkan'||id==='simoni') && menctionStars>=3 && yeminChoice==='stay' && !playerPenion){
+    playerPenion=true; saveState();
+    showDialogue(addressName(id), 'Menction yanıt verdi.\nSanctification izi sende.\n[Penion: kazanıldı]');
+    currentNpc='__empty'; hint.textContent='E — kapat'; return;
+  }
+  if(id==='linuinous' && playerHP<=12 && n.bond>=1 && !storageHint){
+    storageHint=true;
+    showDialogue(addressName(id), n.storageLine||'HP’n düşük. Yanımdayken güç depolanıyor gibi…', n.bond>=2?n.quiet:null);
+    armSilence(id); hint.textContent='E — devam'; return;
+  }
+  let line=n.lines[n.index];
+  let extra=null;
+  if(id==='vertimuru'&&n.bond>=2&&n.shadow) extra=n.shadow[n.index%n.shadow.length];
+  if(id==='linuinous'&&n.bond>=2&&n.index===1) extra=n.quiet;
+  const choices=[];
+  if(secretKnown && secretHolder && secretHolder!==id && secretShared!==true && n.bond>=1)
+    choices.push({id:'betray', label:'Sırrı anlat…'});
+  if(id==='simoni' && n.bond>=2) choices.push({id:'energy', label:'Enerji al (Unicorn)'});
+  if(id==='vertimuru' && n.bond>=2) choices.push({id:'shadow', label:'Gölgeye gir (10sn)'});
+  if(id==='rentimous' && n.bond>=1) choices.push({id:'race', label:'Yarış (sadece iz)'});
+  if(id==='minil' && n.bond>=1) choices.push({id:'robot', label:'Linim hakkında'});
+  if(id==='fenir' && n.bond>=1) choices.push({id:'fly', label:'Kanat / soğuk'});
+  if(id==='pemy' && nearPemy) choices.push({id:'wind', label:'Hava alanı?'});
+  if(canKidnap(id)) choices.push({id:'kidnap', label:'Kaçır…'});
+  if(heldId===id) choices.push({id:'kd_release', label:'Bırak'});
+  showDialogue(addressName(id)+(n.bond>=2?' ♥':''), line, extra, choices.length?choices:null);
+  armSilence(id);
+  hint.textContent=choices.length?'Seç veya E — devam':'E — devam';
+}
+function pickChoice(choiceId){
+  if(choiceId==='stay'||choiceId==='pass'){
+    yeminDone=true; yeminChoice=choiceId;
+    if(choiceId==='stay'){ npcs.merkan.bond=Math.min(3,npcs.merkan.bond+1); updateStatus();
+      showDialogue('Bay Merkan','Öyle olsun.\nKamp seni gördü.'); }
+    else showDialogue('Bay Merkan','Anladım.\nGeçici misafirsin.');
+    currentNpc='__empty'; saveState(); hint.textContent='E — kapat'; return;
+  }
+  if(choiceId==='betray'){
+    secretShared=true; betrayedId=secretHolder;
+    localStorage.setItem('penionTale.betrayed', betrayedId); saveState();
+    const victim=npcs[betrayedId]?npcs[betrayedId].name:'?';
+    showDialogue(addressName(currentNpc), 'Anlattın.\n['+victim+' güveni kalıcı kırıldı]');
+    currentNpc='__empty'; hint.textContent='E — kapat'; return;
+  }
+  if(choiceId==='energy'){
+    speedMod=1.35; speedModUntil=Date.now()+8000;
+    showDialogue(addressName('simoni')+' ♥', npcs.simoni.actEnergy||'Enerji aktı. Bir süre çeviksin.');
+    currentNpc='__empty'; hint.textContent='E — kapat'; return;
+  }
+  if(choiceId==='shadow'){
+    shadowUntil=Date.now()+10000;
+    showDialogue(addressName('vertimuru'), npcs.vertimuru.shadowAct||'Gölgeye girdin. 10 saniye.');
+    currentNpc='__empty'; hint.textContent='E — kapat'; return;
+  }
+  if(choiceId==='race'){
+    showDialogue(addressName('rentimous'), npcs.rentimous.raceLine||'Sadece iz. Fizik yok.');
+    for(let i=0;i<8;i++) setTimeout(()=>spawnRentTrail(), i*40);
+    currentNpc='__empty'; hint.textContent='E — kapat'; return;
+  }
+  if(choiceId==='robot'){
+    showDialogue(addressName('minil'), npcs.minil.robotLine||'Linim ölürse ben de.');
+    currentNpc='__empty'; hint.textContent='E — kapat'; return;
+  }
+  if(choiceId==='fly'){
+    showDialogue(addressName('fenir'), npcs.fenir.flyLine||'Uçamam veremem. Soğuk üşütmez yanımdayken.');
+    currentNpc='__empty'; hint.textContent='E — kapat'; return;
+  }
+  if(choiceId==='wind'){
+    showDialogue(addressName('pemy'), npcs.pemy.windLine||'Hava yüklü. Yavaşla.');
+    currentNpc='__empty'; hint.textContent='E — kapat'; return;
+  }
+  if(choiceId==='fp_sorry' || choiceId==='fp_test' || choiceId==='fp_power' || choiceId==='fp_silent'){
+    endPunish(choiceId);
+    return;
+  }
+  if(choiceId==='kidnap'){
+    const id = currentNpc;
+    closeDialogue();
+    if(id && canKidnap(id)) startKidnap(id);
+    return;
+  }
+  if(choiceId==='kd_release'){
+    combatLock = false;
+    closeDialogue();
+    releaseKidnap('choice');
+    return;
+  }
+  if(choiceId==='kd_force'){
+    // kadın zorla dışarı — daha ağır sonuç
+    const id = window._kidnapId || heldId;
+    combatLock = false;
+    if(id && npcs[id]){
+      npcs[id].coldUntil = Date.now() + 90000;
+      npcs[id].ignoreUntil = Date.now() + 20000;
+      npcs[id].bond = 0;
+      updateStatus();
+    }
+    closeDialogue();
+    releaseKidnap('edge');
+    // ekstra mesaj
+    if(id && npcs[id]){
+      talking = true; currentNpc = '__empty';
+      showDialogue(npcs[id].name, '…Zorla çıkardın.\nBu kamp seni unutmayacak.');
+      hint.textContent = 'E — kapat';
+    }
+    return;
+  }
+  if(choiceId==='kd_back'){
+    // kenardan geri çek
+    outsideTriggered = false;
+    combatLock = false;
+    if(heldId && npcs[heldId]){
+      // içeri doğru it
+      npcs[heldId].x = Math.max(120, Math.min(MAP_W-120, npcs[heldId].x));
+      npcs[heldId].y = Math.max(120, Math.min(MAP_H-120, npcs[heldId].y));
+      const el = getNpcEl(heldId);
+      if(el){ el.style.left = npcs[heldId].x+'px'; el.style.top = npcs[heldId].y+'px'; }
+    }
+    closeDialogue();
+    return;
+  }
+}
+function advanceDialogue(){
+  if(!currentNpc) return;
+  if(['__empty','__board','__save','__star','__log','__circle','__heal','__fire','__overhear','__night','__punish','__kidnap_edge'].includes(currentNpc)){
+    if(currentNpc==='__punish' || currentNpc==='__kidnap_edge') return; // seçim bekleniyor
+    closeDialogue(); return;
+  }
+  const n=npcs[currentNpc]; if(!n){ closeDialogue(); return; }
+  n.index=(n.index+1)%n.lines.length;
+  if(n.index===0){
+    if(currentNpc==='pinmy'&&n.bond>=1&&playerHP<maxHP){
+      showDialogue(addressName('pinmy')+' ♥','İyileştirmemi ister misin?\n(E — kabul et, yan etki: yavaşlık)');
+      currentNpc='__heal'; return;
+    }
+    closeDialogue();
+  } else startDialogue(currentNpc);
+}
+function circleText(){
+  if(playerPenion) return 'Sanctification Çemberi\nİz sende.\nKenyless hâlâ yok.';
+  if(menctionStars<=0) return 'Sanctification Çemberi\nYarım kalmış.';
+  if(menctionStars<3) return 'Sanctification Çemberi\n('+menctionStars+'/3)';
+  if(yeminChoice==='stay') return 'Sanctification Çemberi\n3★ + yemin tamam.\nSimoni veya Merkan’a git.';
+  return 'Sanctification Çemberi\n3★ tamam. Yemin eksik.';
+}
+
+
+function restoreFirePositions(){
+  for(const id in npcs){
+    const n = npcs[id];
+    if(n._ox != null){
+      n.x = n._ox; n.y = n._oy; n._ox = null; n._oy = null;
+      const el = document.querySelector('.npc.'+id);
+      if(el){ el.style.left = n.x+'px'; el.style.top = n.y+'px'; el.classList.remove('at-fire'); }
+    }
+  }
+  fireSession = null;
+}
+function setNight(on){
+  isNight = on;
+  const n = document.getElementById('night');
+  if(n) n.classList.toggle('on', on);
+  const label = document.getElementById('minimap-label');
+  if(label) label.textContent = on ? 'HERO KAMPI — Gece / Ateş' : 'HERO KAMPI — Ana Alan';
+}
+function placeAllAtFire(){
+  restoreFirePositions();
+  const fireX = 640, fireY = 520;
+  const ids = Object.keys(npcs);
+  const radius = 70;
+  ids.forEach((id, i) => {
+    const n = npcs[id];
+    n._ox = n.x; n._oy = n.y;
+    const ang = (i / ids.length) * Math.PI * 2 - Math.PI/2;
+    n.x = fireX + Math.cos(ang) * radius - 14;
+    n.y = fireY + Math.sin(ang) * radius - 14;
+    const el = document.querySelector('.npc.'+id);
+    if(el){ el.style.left = n.x+'px'; el.style.top = n.y+'px'; el.classList.add('at-fire'); }
+  });
+  const scene = pickFireScene();
+  fireSession = scene.id;
+  firePairsHeard._sceneLine = 0;
+  firePairsHeard._sceneId = scene.id;
+  nightCycle++;
+}
+function currentFireScene(){
+  return FIRE_SCENES.find(s => s.id === fireSession) || FIRE_SCENES[0];
+}
+function toggleNight(){
+  if(!isNight){
+    setNight(true);
+    placeAllAtFire();
+    const scene = currentFireScene();
+    talking = true; currentNpc = '__empty';
+    showDialogue('🔥 Gece — ' + scene.title, 'Herkes ateşin etrafında.\\nYaklaş, E ile dinle.\\n\\nKonu bitince sohbet kapanır.');
+    hint.textContent = 'E — kapat, sonra ateşte dinle';
+  } else {
+    restoreFirePositions();
+    setNight(false);
+    talking = true; currentNpc = '__empty';
+    showDialogue('🔥 Sabah', 'Gündüz oldu.\\nHerkes dağıldı.\\nTekrar gece = başka konu.');
+    hint.textContent = 'E — kapat';
+  }
+}
+function tryFireTalk(){
+  if(!isNight || !fireSession) return false;
+  const fireX = 640, fireY = 520;
+  if(Math.abs((px+21)-fireX) > 95 || Math.abs((py+36)-fireY) > 95) return false;
+  const scene = currentFireScene();
+  if(!scene) return false;
+  let i = firePairsHeard._sceneLine || 0;
+  if(i >= scene.lines.length){
+    // topic finished — close night offer
+    talking = true; currentNpc = '__night';
+    showDialogue('🔥 Kamp Ateşi', 'Konu bitti: ' + scene.title + '\\n\\nAteş sakin.\\nE — gündüze dön.');
+    hint.textContent = 'E — gündüz';
+    return true;
+  }
+  const line = scene.lines[i];
+  firePairsHeard._sceneLine = i + 1;
+  const left = scene.lines.length - (i + 1);
+  talking = true; currentNpc = '__fire';
+  const tail = left > 0
+    ? ('\\n\\n(E — devam · kalan ' + left + ')')
+    : ('\\n\\n(Konu bitti. E — kapat / gündüz)');
+  showDialogue('🔥 ' + scene.title, line + tail);
+  hint.textContent = left > 0 ? 'E — devam' : 'E — bitir';
+  return true;
+}
+function fireInterject(){
+  const scene = currentFireScene();
+  if(!scene){ closeDialogue(); return; }
+  let i = firePairsHeard._sceneLine || 0;
+  if(i >= scene.lines.length){
+    currentNpc = '__night';
+    showDialogue('🔥 Kamp Ateşi', 'Konu bitti: ' + scene.title + '\\n\\nE — gündüze dön.');
+    hint.textContent = 'E — gündüz';
+    return;
+  }
+  const line = scene.lines[i];
+  firePairsHeard._sceneLine = i + 1;
+  const left = scene.lines.length - (i + 1);
+  if(left > 0){
+    showDialogue('🔥 ' + scene.title, line + '\\n\\n(E — devam · kalan ' + left + ')');
+    currentNpc = '__fire';
+    hint.textContent = 'E — devam';
+  } else {
+    showDialogue('🔥 ' + scene.title, line + '\\n\\n—\\nKonu kapandı.\\nE — gündüze dön.');
+    currentNpc = '__night';
+    hint.textContent = 'E — gündüz';
+  }
+}
+function checkOverhear(){
+  if(talking || Date.now()<overhearCooldown) return;
+  // if two NPCs both close to player and to each other
+  const near=[];
+  for(const id in npcs){
+    const n=npcs[id];
+    const d=Math.max(Math.abs((px+21)-(n.x+14)), Math.abs((py+36)-(n.y+14)));
+    if(d<95) near.push(id);
+  }
+  if(near.length<2) return;
+  // pick first two
+  const a=near[0], b=near[1];
+  const key=[a,b].sort().join('+');
+  if(firePairsHeard['oh_'+key]) return; // once per pair per session soft
+  const na=npcs[a], nb=npcs[b];
+  // distance between them
+  if(Math.max(Math.abs(na.x-nb.x), Math.abs(na.y-nb.y))>120) return;
+  firePairsHeard['oh_'+key]=1;
+  overhearCooldown=Date.now()+45000;
+  talking=true; currentNpc='__overhear';
+  const snippets={
+    'linuinous+simoni':'Linuinous: Güç depoluyorsun.\nSimoni: Hayır. Sadece… paylaşıyorum.',
+    'pemy+vertimuru':'Pemy: …Yaklaşma.\nVertimuru: Zaten yakınım.',
+    'pinmy+minil':'Pinmy: Robot bozulmasın.\nMinil: Bozulursa ikimiz de… sus.',
+    'rentimous+simoni':'Rentimous: Koşma.\nSimoni: Sen yavaşla.',
+    'fenir+merkan':'Fenir: Garipserler beni.\nMerkan: Yine de kural aynı.',
+    'linuinous+pemy':'Linuinous: İlk arkadaşım.\nPemy: …Biliyorum.'
+  };
+  const sn = snippets[key] || (na.name+': …\n'+nb.name+': Hm.');
+  showDialogue('（kulak misafiri）', sn+'\n\n(İkisi de seni fark etmedi.)');
+  hint.textContent='E — kapat';
+}
+
+function tryTalk(){
+  if(typeof tryFireTalk==='function' && tryFireTalk()) return;
+  const prx=px+21, pry=py+36;
+  // campfire: day -> night
+  const fire=document.querySelector('.campfire');
+  if(fire && !isNight){
+    const fx=parseFloat(fire.style.left)+18, fy=parseFloat(fire.style.top)+18;
+    if(Math.abs(prx-fx)<55&&Math.abs(pry-fy)<55){
+      talking=true; currentNpc='__night';
+      showDialogue('🔥 Kamp Ateşi', 'Ateş yanıyor.\nE — geceye geç.\nHerkes toplanır; konu bitene kadar dinlersin.');
+      hint.textContent='E — gece / kapat'; return;
+    }
+  }
+  for(const el of document.querySelectorAll('.star')){
+    if(el.style.display==='none') continue;
+    const sx=parseFloat(el.style.left), sy=parseFloat(el.style.top);
+    if(Math.abs(prx-sx)<42&&Math.abs(pry-sy)<42){
+      if(el.dataset.save){
+        const line=SAVE_LINES[Math.floor(Math.random()*SAVE_LINES.length)];
+        saveState(line); talking=true; currentNpc='__save';
+        showDialogue('★ Menction Save', line+'\n\n(Son: '+(saveFlavors.slice(-3).join(' / ')||'—')+')');
+        hint.textContent='E — kapat'; return;
+      }
+      if(el.dataset.star&&!collectedStars[el.dataset.star]){
+        collectedStars[el.dataset.star]=true; menctionStars++; el.style.display='none';
+        updateStatus(); saveState(); talking=true; currentNpc='__star';
+        showDialogue('★ Menction Star','Parça: '+menctionStars+'/3'); hint.textContent='E — kapat'; return;
+      }
+    }
+  }
+  if(talking) return;
+  const board=document.querySelector('.board');
+  if(board){ const bx=parseFloat(board.style.left)+18, by=parseFloat(board.style.top)+14;
+    if(Math.abs(prx-bx)<48&&Math.abs(pry-by)<48){ talking=true; currentNpc='__board'; showDialogue('Kamp Panosu',boardText); hint.textContent='E — kapat'; return; } }
+  const log=document.querySelector('.logstone');
+  if(log){ const lx=parseFloat(log.style.left)+17, ly=parseFloat(log.style.top)+17;
+    if(Math.abs(prx-lx)<48&&Math.abs(pry-ly)<48){ talking=true; currentNpc='__log'; showDialogue('Update Log',updateLogText); hint.textContent='E — kapat'; return; } }
+  const circ=document.querySelector('.circle');
+  if(circ){ const cx=parseFloat(circ.style.left)+32, cy=parseFloat(circ.style.top)+32;
+    if(Math.abs(prx-cx)<55&&Math.abs(pry-cy)<55){ talking=true; currentNpc='__circle'; showDialogue('◎',circleText()); hint.textContent='E — kapat'; return; } }
+  let nearest=null, best=70;
+  for(const id in npcs){ const n=npcs[id]; const d=Math.max(Math.abs(prx-(n.x+14)),Math.abs(pry-(n.y+14))); if(d<best){best=d;nearest=id;} }
+  if(nearest) startDialogue(nearest);
+  else { talking=true; currentNpc='__empty'; showDialogue('...','Yakınında etkileşim yok.'); hint.textContent='E — kapat'; }
+}
+function interact(){
+  const now=Date.now(); if(now-lastInteract<280) return; lastInteract=now;
+  if(talking){
+    if(currentNpc==='__night'){ closeDialogue(); toggleNight(); return; }
+    if(currentNpc==='__fire'){ fireInterject(); return; }
+    if(currentNpc==='__heal'){
+      playerHP=maxHP; updateStatus();
+      speedMod=0.55; speedModUntil=Date.now()+12000; // Saf İyileştirici yan etki
+      showDialogue(addressName('pinmy'), npcs.pinmy.healSide);
+      currentNpc='__empty'; return;
+    }
+    if(dialogueBox.querySelector('.choice')) return;
+    advanceDialogue(); return;
+  }
+  tryTalk();
+}
+function start(){
+  if(window._rebindAdminGate) window._rebindAdminGate();
+  loadState();
+  title.style.display='none'; game.style.display='block';
+  walls.forEach(w=>{ if(w.w>40||w.h>40){ const d=document.createElement('div'); d.className='building';
+    d.style.left=w.x+'px'; d.style.top=w.y+'px'; d.style.width=w.w+'px'; d.style.height=w.h+'px'; map.appendChild(d);} });
+  setSprite(); updateCamera(); updateStatus();
+}
+title.addEventListener('click', start);
+const padMap={up:'arrowup',down:'arrowdown',left:'arrowleft',right:'arrowright'};
+function setPad(dir,down){ const k=padMap[dir]; if(k) keys[k]=down; }
+document.querySelectorAll('.pad-btn').forEach(btn=>{
+  const dir=btn.dataset.dir;
+  const on=e=>{e.preventDefault();e.stopPropagation();btn.classList.add('pressed');setPad(dir,true);};
+  const off=e=>{e.preventDefault();e.stopPropagation();btn.classList.remove('pressed');setPad(dir,false);};
+  btn.addEventListener('touchstart',on,{passive:false});
+  btn.addEventListener('touchend',off,{passive:false});
+  btn.addEventListener('touchcancel',off,{passive:false});
+  btn.addEventListener('pointerdown',on,{passive:false});
+  btn.addEventListener('pointerup',off,{passive:false});
+  btn.addEventListener('pointercancel',off,{passive:false});
+  btn.addEventListener('mousedown',on); btn.addEventListener('mouseup',off); btn.addEventListener('mouseleave',off);
+});
+document.getElementById('btn-talk').addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();if(!combatLock) interact();},{passive:false});
+document.getElementById('btn-talk').addEventListener('click',e=>{e.preventDefault();if(!combatLock) interact();});
+const btnAtk = document.getElementById('btn-atk');
+if(btnAtk){
+  btnAtk.addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();tryAttack();},{passive:false});
+  btnAtk.addEventListener('click',e=>{e.preventDefault();tryAttack();});
+}
+document.addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase(); keys[k]=true;
+  if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+  if(k==='e'||k==='enter'){ e.preventDefault(); if(!combatLock) interact(); }
+  if(k===' '){ e.preventDefault(); tryAttack(); }
+});
+document.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
+function gameLoop(){
+  if(heldId && !combatLock) updateHeldFollow();
+  if(!talking && !combatLock){
+    if(Date.now()>speedModUntil && !nearPemy) speedMod=1;
+    const speed=3.0*speedMod;
+    let nx=px,ny=py; moving=false; lastMoveSpeed=0;
+    if(keys['arrowleft']||keys['a']){nx-=speed;facing='left';moving=true;lastMoveSpeed=speed;}
+    if(keys['arrowright']||keys['d']){nx+=speed;facing='right';moving=true;lastMoveSpeed=speed;}
+    if(keys['arrowup']||keys['w']){ny-=speed;facing='up';moving=true;lastMoveSpeed=speed;}
+    if(keys['arrowdown']||keys['s']){ny+=speed;facing='down';moving=true;lastMoveSpeed=speed;}
+    if(!collides(nx,py)) px=nx; if(!collides(px,ny)) py=ny;
+    px=Math.max(40,Math.min(MAP_W-82,px)); py=Math.max(40,Math.min(MAP_H-100,py));
+    const pin=npcs.pinmy;
+    const pdx=Math.abs((px+21)-(pin.x+14)), pdy=Math.abs((py+36)-(pin.y+14));
+    if(pdx<55&&pdy<55&&lastMoveSpeed>2&&!pinmyScared){ pinmyScared=true; pin.x=Math.min(MAP_W-80,pin.baseX+28); const el=document.querySelector('.npc.pinmy'); if(el) el.style.left=pin.x+'px'; }
+    if(pdx>120&&pdy>120){ pinmyScared=false; pin.x=pin.baseX; const el=document.querySelector('.npc.pinmy'); if(el) el.style.left=pin.x+'px'; }
+    // near rentimous while moving fast-ish: trails
+    const r=npcs.rentimous;
+    if(moving && Math.abs((px+21)-(r.x+14))<80 && Math.abs((py+36)-(r.y+14))<80) spawnRentTrail();
+    player.style.left=px+'px'; player.style.top=py+'px';
+    setSprite(); updateCamera(); checkAlan(); spawnButterflies(); updatePemyWind();
+  }
+  requestAnimationFrame(gameLoop);
+}
+player.style.left=px+'px'; player.style.top=py+'px';
+gameLoop();
+
+
+
+/* ===== COMBAT SYSTEM ===== */
+const SITEM = {
+  simoni: '…Bunu beklemiyordum. Kırıldım.',
+  linuinous: 'Güç depolamak yerine bunu mu seçtin?',
+  pemy: '…Sen de mi. Boşver.',
+  rentimous: 'Hızımı sana harcamalıydım.',
+  pinmy: 'A-acıdı… neden? Ben sana bir şey yapmadım ki…',
+  vertimuru: 'Gölge bunu unutmaz.',
+  merkan: 'Kural 1: sadakat. İhlal edildi.',
+  minil: 'Hasar kaydı: sen. Üzgünüm, Pinmy’yi koruyacağım.',
+  fenir: 'Kanadımı sana açmıştım.'
+};
+
+
+function getNpcEl(id){
+  return document.querySelector('.npc.'+id) || document.querySelector('.npc[data-id="'+id+'"]');
+}
+function showNpcHpBar(id){
+  const n = npcs[id]; if(!n) return;
+  const el = getNpcEl(id); if(!el) return;
+  let bar = el.querySelector('.npc-hpbar');
+  if(!bar){
+    bar = document.createElement('div'); bar.className='npc-hpbar';
+    bar.innerHTML='<div class="fill"></div>';
+    el.appendChild(bar);
+  }
+  const fill = bar.querySelector('.fill');
+  fill.style.width = Math.max(0, (n.hp / n.maxHP) * 100) + '%';
+  bar.style.display = 'block';
+  clearTimeout(bar._hide);
+  bar._hide = setTimeout(()=>{ bar.style.display='none'; }, 3000);
+}
+function spawnHitFx(x, y){
+  const fx = document.createElement('div');
+  fx.className='hit-fx'; fx.textContent='💥';
+  fx.style.left = x + 'px'; fx.style.top = y + 'px';
+  map.appendChild(fx);
+  setTimeout(()=>fx.remove(), 500);
+}
+function shakeNpc(id){
+  const el = getNpcEl(id); if(!el) return;
+  el.classList.remove('shake'); void el.offsetWidth;
+  el.classList.add('shake');
+  setTimeout(()=>el.classList.remove('shake'), 280);
+}
+function warnNpc(id){
+  const el = getNpcEl(id); if(!el) return;
+  el.classList.add('warn');
+  setTimeout(()=>el.classList.remove('warn'), 300);
+}
+function playerTakeDamage(amount){
+  if(combatLock) return;
+  playerHP = Math.max(0, playerHP - amount);
+  updateStatus();
+  const flash = document.getElementById('dmg-flash');
+  if(flash){ flash.classList.add('on'); setTimeout(()=>flash.classList.remove('on'), 300); }
+  if(playerHP <= 0){
+    playerHP = 5;
+    updateStatus();
+    combatLock = true;
+    talking = true; currentNpc = '__empty';
+    showDialogue('...', 'Kalkıyorsun...');
+    hint.textContent = '2 sn bekleniyor';
+    setTimeout(()=>{
+      closeDialogue();
+      combatLock = false;
+    }, 2000);
+  }
+}
+function dropBond(id){
+  const n = npcs[id]; if(!n) return;
+  const prev = n.bond;
+  n.bond = Math.max(0, n.bond - 1);
+  updateStatus();
+  if(n.bond < prev){
+    // kısa sitem balonu (savaşı kilitlemesin)
+    const el = getNpcEl(id);
+    if(el){
+      let bubble = el.querySelector('.sitem-bubble');
+      if(!bubble){
+        bubble = document.createElement('div');
+        bubble.className = 'sitem-bubble';
+        bubble.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);bottom:32px;white-space:nowrap;background:rgba(0,0,0,.85);border:1px solid #ff69b4;padding:3px 6px;font-size:7px;color:#ffb6c1;z-index:20;pointer-events:none;max-width:140px;white-space:normal;text-align:center;';
+        el.appendChild(bubble);
+      }
+      bubble.textContent = SITEM[id] || '...';
+      clearTimeout(bubble._t);
+      bubble._t = setTimeout(()=>{ if(bubble.parentNode) bubble.remove(); }, 2800);
+    }
+  }
+  if(n.bond === 0){
+    n.ignoreUntil = Date.now() + 10000;
+  }
+}
+
+/* Son vuruş: öldürmek yok — ceza + diyalog + seçim */
+const FINAL_PUNISH = {
+  simoni: {
+    text: 'Simoni seni gökkuşağı ipleriyle bağladı.\nHareket edemiyorsun.\n\n“Bunu benden beklemiyordum.\nNeden?”',
+    choices: [
+      {id:'fp_sorry', label:'Özür dilerim'},
+      {id:'fp_test', label:'Sadece deniyordum'},
+      {id:'fp_silent', label:'… (sessiz kal)'}
+    ],
+    apply(){ playerHP = Math.max(1, playerHP - 4); updateStatus(); speedMod = 0.4; speedModUntil = Date.now()+8000; }
+  },
+  linuinous: {
+    text: 'Linuinous gücünü çekti.\nBacakların ağırlaştı.\n\n“Hasar almak güç depolatır.\nAma sen… bunu seçtin.”',
+    choices: [
+      {id:'fp_sorry', label:'Yanıldım'},
+      {id:'fp_power', label:'Gücünü merak ettim'},
+      {id:'fp_silent', label:'…'}
+    ],
+    apply(){ playerHP = Math.max(1, playerHP - 3); updateStatus(); speedMod = 0.35; speedModUntil = Date.now()+10000; }
+  },
+  pemy: {
+    text: 'Pemy eldivenini kaldırdı.\nHava seni yere bastırdı.\n\n“…Yeter.\nBir daha yaklaşma.”',
+    choices: [
+      {id:'fp_sorry', label:'Tamam, duruyorum'},
+      {id:'fp_test', label:'Sadece tepkiyi gördüm'},
+      {id:'fp_silent', label:'…'}
+    ],
+    apply(){ playerHP = Math.max(1, playerHP - 2); updateStatus(); speedMod = 0.3; speedModUntil = Date.now()+12000; }
+  },
+  rentimous: {
+    text: 'Rentimous bir anda arkandaydı.\nSeni yere sabitledi.\n\n“Hızımı buna mı harcayacaktım?\nKonuş.”',
+    choices: [
+      {id:'fp_sorry', label:'Özür'},
+      {id:'fp_test', label:'Ne kadar hızlısın merak ettim'},
+      {id:'fp_silent', label:'…'}
+    ],
+    apply(){ playerHP = Math.max(1, playerHP - 3); updateStatus(); }
+  },
+  pinmy: {
+    text: 'Pinmy titreyerek geri çekildi.\nGözleri dolu.\n\n“B-beni bırak… lütfen.\nBen sana bir şey yapmadım ki…”',
+    choices: [
+      {id:'fp_sorry', label:'Üzgünüm, Pinmy'},
+      {id:'fp_test', label:'Korkma, şaka yaptım'},
+      {id:'fp_silent', label:'…'}
+    ],
+    apply(){ /* guilt only, soft */ speedMod = 0.6; speedModUntil = Date.now()+6000; }
+  },
+  vertimuru: {
+    text: 'Gölge ayaklarını sardı.\nHareket yok.\n\n“Gölge bunu unutmaz.\nSen de unutma.”',
+    choices: [
+      {id:'fp_sorry', label:'Anladım'},
+      {id:'fp_test', label:'Gölgeni test ettim'},
+      {id:'fp_silent', label:'…'}
+    ],
+    apply(){ playerHP = Math.max(1, playerHP - 3); updateStatus(); }
+  },
+  merkan: {
+    text: 'Bay Merkan elini kaldırdı.\nKural ihlali kaydedildi.\n\n“Kural 1: sadakat.\nİhlal edildi. Cevabın?”',
+    choices: [
+      {id:'fp_sorry', label:'Hata yaptım'},
+      {id:'fp_test', label:'Sınırını görmek istedim'},
+      {id:'fp_silent', label:'…'}
+    ],
+    apply(){ playerHP = Math.max(1, playerHP - 2); updateStatus(); }
+  },
+  minil: {
+    text: 'Linim devreye girdi.\nMavi bir alan seni tuttu.\n\n“Hasar kaydı: sen.\nPinmy’yi koruyacağım. Konuş.”',
+    choices: [
+      {id:'fp_sorry', label:'Saldırmayacağım'},
+      {id:'fp_test', label:'Robotunu denedim'},
+      {id:'fp_silent', label:'…'}
+    ],
+    apply(){ playerHP = Math.max(1, playerHP - 3); updateStatus(); }
+  },
+  fenir: {
+    text: 'Fenir kanat çırptı.\nSeni geri itti, rüzgâr kesti.\n\n“Kanadımı sana açmıştım.\nBunu mu hak ettim?”',
+    choices: [
+      {id:'fp_sorry', label:'Özür dilerim'},
+      {id:'fp_test', label:'Gücünü merak ettim'},
+      {id:'fp_silent', label:'…'}
+    ],
+    apply(){ playerHP = Math.max(1, playerHP - 2); updateStatus(); speedMod = 0.5; speedModUntil = Date.now()+8000; }
+  }
+};
+
+function triggerFinalHit(id){
+  const n = npcs[id]; if(!n) return;
+  const data = FINAL_PUNISH[id];
+  if(!data){ n.hp = 1; showNpcHpBar(id); return; }
+
+  // öldürme yok
+  n.hp = 1;
+  showNpcHpBar(id);
+  dropBond(id);
+
+  // ceza uygula
+  data.apply();
+
+  // bir süre soğuk davran
+  n.coldUntil = Date.now() + 45000;
+  n.ignoreUntil = Date.now() + 8000; // kısa süre saldırı/konuşma yok
+
+  combatLock = true;
+  talking = true;
+  currentNpc = '__punish';
+  window._punishNpc = id;
+
+  showDialogue(n.name, data.text, null, data.choices);
+  hint.textContent = 'Seçim yap';
+}
+
+function endPunish(choiceId){
+  const id = window._punishNpc;
+  const n = id ? npcs[id] : null;
+  combatLock = false;
+  window._punishNpc = null;
+
+  let reply = '…';
+  if(choiceId === 'fp_sorry'){
+    reply = n ? (id==='pinmy' ? '…Tamam. Biraz uzak dur lütfen.' : '…Tamam. Bir daha olmasın.') : '…';
+    if(n) n.coldUntil = Date.now() + 25000; // biraz daha kısa
+  } else if(choiceId === 'fp_test' || choiceId === 'fp_power'){
+    reply = n ? '…O zaman mesafe koyuyoruz.' : '…';
+    if(n){ n.coldUntil = Date.now() + 60000; n.bond = Math.max(0, n.bond - 1); updateStatus(); }
+  } else {
+    reply = n ? '…Sessizliğin de bir cevap.' : '…';
+    if(n) n.coldUntil = Date.now() + 40000;
+  }
+
+  if(n){
+    showDialogue(n.name, reply);
+    currentNpc = '__empty';
+    hint.textContent = 'E — kapat';
+  } else {
+    closeDialogue();
+  }
+}
+
+function fireLaser(fromX, fromY, toX, toY, color, dmg){
+  const line = document.createElement('div');
+  line.className = 'laser-line ' + (color||'red');
+  const dx = toX - fromX, dy = toY - fromY;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  const ang = Math.atan2(dy, dx) * 180 / Math.PI;
+  line.style.left = fromX + 'px';
+  line.style.top = fromY + 'px';
+  line.style.width = len + 'px';
+  line.style.transform = 'rotate(' + ang + 'deg)';
+  map.appendChild(line);
+  setTimeout(()=>{
+    line.remove();
+    // check if player still near the line path roughly
+    const prx = px + 21, pry = py + 36;
+    const dist = Math.abs((pry - fromY)*dx - (prx - fromX)*dy) / (len || 1);
+    if(dist < 40 && Math.hypot(prx-toX, pry-toY) < len + 30){
+      playerTakeDamage(dmg);
+    }
+  }, 180);
+}
+function npcCounter(id){
+  const n = npcs[id]; if(!n || combatLock) return;
+  if(Date.now() < (n.ignoreUntil||0)) return;
+  warnNpc(id);
+  dropBond(id); // counter also drops bond another -1
+  setTimeout(()=>{
+    if(combatLock) return;
+    const prx = px + 21, pry = py + 36;
+    const nx = n.x + 14, ny = n.y + 14;
+    if(id === 'simoni'){
+      // delayed laser
+      setTimeout(()=>{
+        fireLaser(nx, ny, prx, pry, 'red', 3);
+      }, 2000);
+    } else if(id === 'rentimous'){
+      // dash
+      const el = getNpcEl(id);
+      const ox = n.x, oy = n.y;
+      n.x = Math.max(40, Math.min(MAP_W-60, px + 10));
+      n.y = Math.max(40, Math.min(MAP_H-60, py + 10));
+      if(el){ el.style.left = n.x+'px'; el.style.top = n.y+'px'; el.style.transition = 'left .12s linear, top .12s linear'; }
+      if(Math.hypot((px+21)-(n.x+14), (py+36)-(n.y+14)) < 55) playerTakeDamage(2);
+      setTimeout(()=>{
+        n.x = ox; n.y = oy;
+        if(el){ el.style.left = ox+'px'; el.style.top = oy+'px'; }
+      }, 400);
+    } else if(id === 'pemy'){
+      // knockback
+      const dx = (px+21) - (n.x+14), dy = (py+36) - (n.y+14);
+      const d = Math.hypot(dx,dy) || 1;
+      px += (dx/d)*60; py += (dy/d)*60;
+      px = Math.max(40, Math.min(MAP_W-82, px));
+      py = Math.max(40, Math.min(MAP_H-100, py));
+      player.style.left = px+'px'; player.style.top = py+'px';
+      playerTakeDamage(1);
+      speedMod = 0.5; speedModUntil = Date.now() + 2000;
+    } else if(id === 'vertimuru'){
+      // appear behind
+      n.x = px - 20; n.y = py + 10;
+      const el = getNpcEl(id);
+      if(el){ el.style.left = n.x+'px'; el.style.top = n.y+'px'; }
+      playerTakeDamage(2);
+      setTimeout(()=>{
+        n.x = 880; n.y = 240;
+        if(el){ el.style.left = n.x+'px'; el.style.top = n.y+'px'; }
+      }, 600);
+    } else if(id === 'merkan'){
+      // clones absorb first 2
+      if((n.clones||0) < 2){
+        n.clones = (n.clones||0) + 1;
+        const c = document.createElement('div');
+        c.className = 'npc-clone merkan';
+        c.style.left = (n.x + (n.clones*18)) + 'px';
+        c.style.top = (n.y - 10) + 'px';
+        c.textContent = 'M';
+        map.appendChild(c);
+        setTimeout(()=>c.remove(), 2500);
+        // no real damage to merkan this hit already applied earlier? wait handled in attack
+      }
+    } else if(id === 'minil'){
+      setTimeout(()=>{
+        fireLaser(nx, ny, prx, pry, 'blue', 3);
+      }, 800);
+    } else if(id === 'linuinous'){
+      if(Math.hypot(prx-nx, pry-ny) < 70) playerTakeDamage(2);
+    } else if(id === 'fenir'){
+      const dx = (px+21) - (n.x+14), dy = (py+36) - (n.y+14);
+      const d = Math.hypot(dx,dy) || 1;
+      px += (dx/d)*40; py += (dy/d)*40;
+      px = Math.max(40, Math.min(MAP_W-82, px));
+      py = Math.max(40, Math.min(MAP_H-100, py));
+      player.style.left = px+'px'; player.style.top = py+'px';
+      playerTakeDamage(2);
+    } else if(id === 'pinmy'){
+      // flee
+      const dx = n.x - px, dy = n.y - py;
+      const d = Math.hypot(dx,dy) || 1;
+      const fleeSpeed = n.bond <= 0 ? 40 : 22;
+      n.x = Math.max(40, Math.min(MAP_W-60, n.x + (dx/d)*fleeSpeed));
+      n.y = Math.max(40, Math.min(MAP_H-60, n.y + (dy/d)*fleeSpeed));
+      const el = getNpcEl(id);
+      if(el){ el.style.left = n.x+'px'; el.style.top = n.y+'px'; }
+      // if still close, cry heal
+      if(Math.hypot((px+21)-(n.x+14),(py+36)-(n.y+14)) < 50){
+        n.hp = Math.min(n.maxHP, n.hp + 1);
+        showNpcHpBar(id);
+        talking = true; currentNpc = '__empty';
+        showDialogue(n.name, 'Beni bırak… lütfen.');
+        hint.textContent = 'E — kapat';
+      }
+    }
+  }, 320);
+}
+
+function tryAttack(){
+  if(combatLock || talking) return;
+  const now = Date.now();
+  if(now - lastAttackAt < 350) return;
+  lastAttackAt = now;
+  const prx = px + 21, pry = py + 36;
+  let nearest = null, best = 50;
+  for(const id in npcs){
+    const n = npcs[id];
+    if(Date.now() < (n.ignoreUntil||0)) continue;
+    const d = Math.max(Math.abs(prx - (n.x+14)), Math.abs(pry - (n.y+14)));
+    if(d < best){ best = d; nearest = id; }
+  }
+  if(!nearest) return;
+  const n = npcs[nearest];
+  // Merkan clones absorb
+  if(nearest === 'merkan' && (n.clones||0) > 0){
+    n.clones--;
+    spawnHitFx((prx + n.x+14)/2, (pry + n.y+14)/2);
+    shakeNpc(nearest);
+    return;
+  }
+  // cannot kill interrupt
+  if(n.hp <= 1){
+    triggerFinalHit(nearest);
+    return;
+  }
+  n.hp = Math.max(0, n.hp - 1);
+  n.hitCount = (n.hitCount||0) + 1;
+  showNpcHpBar(nearest);
+  shakeNpc(nearest);
+  spawnHitFx((prx + n.x+14)/2, (pry + n.y+14)/2);
+  dropBond(nearest);
+  if(n.hitCount >= 2){
+    npcCounter(nearest);
+  }
+}
+
+
+
+/* ===== KAÇIRMA SİSTEMİ ===== */
+function canKidnap(id){
+  const n = npcs[id]; if(!n) return false;
+  if(heldId) return false;
+  if(Date.now() < (n.ignoreUntil||0)) return false;
+  // bond düşük veya soğuk dönemde kaçırılabilir
+  return n.bond <= 1 || Date.now() < (n.coldUntil||0);
+}
+function startKidnap(id){
+  const n = npcs[id]; if(!n || heldId) return;
+  heldId = id;
+  heldSince = Date.now();
+  outsideTriggered = false;
+  n.bond = Math.max(0, n.bond - 1);
+  updateStatus();
+  const el = getNpcEl(id);
+  if(el) el.classList.add('held');
+  talking = true; currentNpc = '__empty';
+  if(n.gender === 'f'){
+    const lines = {
+      simoni: 'Simoni’nin bilekleri gerildi.\n“…Beni mi götüreceksin?\nKonuş.”',
+      vertimuru: 'Vertimuru gölgeye çekildi.\n“…Bırak.\nGölge unutmaz.”',
+      pinmy: 'Pinmy titredi.\n“A-ah… lütfen… nereye?”',
+      nini: 'Nini bileğini çekti.\n“Lii… bu sen misin?\nBırak, lütfen.”',
+      meru: 'Meru sopaya uzanır gibi yaptı.\n“Çık demiştim.\nŞimdi de mi?”',
+      gomi: 'Gomi Meru’ya bakındı.\n“…Bırak onu.\nKarışma.”'
+    };
+    showDialogue(n.name, lines[id] || '…Beni bırak.');
+  } else {
+    const lines = {
+      rentimous: 'Rentimous sakin baktı.\n“Tamam. Götür.”',
+      merkan: 'Bay Merkan omuz silkti.\n“Kayıt düşüldü. Devam et.”',
+      linuinous: 'Linuinous başını eğdi.\n“Güç depoluyorum. Yolun açık.”',
+      minil: 'Minil sakin.\n“Linim izliyor. Yürü.”',
+      pemy: 'Pemy eldivenini indirdi.\n“…Tamam. Götür.”',
+      fenir: 'Fenir kanatlarını indirdi.\n“Rüzgâr bekler. Gidelim.”',
+      nemi: 'Nemi omuz silkti.\n“Tamam. Abartma yeter.”',
+      yezi: 'Yezi kafa salladı.\n“…Tamam.”',
+      kenyless: 'Kenyless omuz silkti.\n“Işıklar kapalı. Götür.”',
+      zinus: 'Zinus sessizce yürüdü.\n“…”',
+      leri: 'Bay Leri dosyayı kapattı.\n“Kısa olsun.”'
+    };
+    showDialogue(n.name, lines[id] || '…Tamam.');
+  }
+  hint.textContent = 'E — kapat · Kenara götür';
+}
+function releaseKidnap(reason){
+  if(!heldId) return;
+  const id = heldId;
+  const n = npcs[id];
+  const el = getNpcEl(id);
+  if(el) el.classList.remove('held');
+  heldId = null;
+  heldSince = 0;
+  outsideTriggered = false;
+  if(!n) return;
+  // geri konum (yakın bir yere)
+  if(n.baseX != null){ n.x = n.baseX; n.y = n.baseY || n.y; }
+  else {
+    n.x = Math.max(80, Math.min(MAP_W-80, n.x));
+    n.y = Math.max(80, Math.min(MAP_H-80, n.y));
+  }
+  if(el){ el.style.left = n.x+'px'; el.style.top = n.y+'px'; }
+
+  if(n.gender === 'm'){
+    // erkek: sakin kurtulur
+    n.coldUntil = Date.now() + 15000;
+    talking = true; currentNpc = '__empty';
+    showDialogue(n.name, reason === 'edge'
+      ? 'Kamp dışına çıktık.\n“…Bıraktım. Ben dönerim.”'
+      : '“…Yeter. Gidiyorum.”');
+    hint.textContent = 'E — kapat';
+  } else {
+    // kadın: daha uzun etki
+    n.coldUntil = Date.now() + 50000;
+    n.ignoreUntil = Date.now() + 12000;
+    dropBond(id);
+    talking = true; currentNpc = '__empty';
+    const outLines = {
+      simoni: reason==='edge'
+        ? 'Simoni kamp sınırında durdu.\n“…Beni dışarı çıkardın.\nBunu unutmayacağım.”'
+        : 'Simoni geri çekildi.\n“…Bir daha dokunma.”',
+      vertimuru: reason==='edge'
+        ? 'Vertimuru gölge bıraktı.\n“…Dışarıda da izlerim.\nUnutma.”'
+        : 'Vertimuru geri çekildi.\n“…Git.”',
+      pinmy: reason==='edge'
+        ? 'Pinmy ağladı.\n“Neden… kampın dışına?\nLütfen bir daha yapma…”'
+        : 'Pinmy ellerini yüzüne kapadı.\n“Ü-üzgünüm… lütfen bırak.”',
+      nini: reason==='edge'
+        ? 'Nini geri çekildi.\n“…Neden dışarı?\nBir daha yapma, Lii.”'
+        : 'Nini omzunu silkti.\n“…Tamam. Uzaklaş.”',
+      meru: reason==='edge'
+        ? 'Meru soğuk baktı.\n“…Bir daha dene.\nSonun farklı olur.”'
+        : 'Meru arkasını döndü.\n“Git.”',
+      gomi: reason==='edge'
+        ? 'Gomi fısıldadı.\n“…Meru unutmaz.\nSen de unutma.”'
+        : 'Gomi uzaklaştı.\n“…”'
+    };
+    showDialogue(n.name, outLines[id] || '…Bırak.');
+    hint.textContent = 'E — kapat';
+  }
+}
+function updateHeldFollow(){
+  if(!heldId) return;
+  const n = npcs[heldId]; if(!n) { heldId=null; return; }
+  // peşinden gel
+  const tx = px - 18, ty = py + 8;
+  n.x += (tx - n.x) * 0.18;
+  n.y += (ty - n.y) * 0.18;
+  const el = getNpcEl(heldId);
+  if(el){ el.style.left = n.x+'px'; el.style.top = n.y+'px'; el.classList.add('held'); }
+
+  // otomatik kurtulma süreleri
+  const elapsed = Date.now() - heldSince;
+  if(n.gender === 'm' && elapsed > 12000){
+    releaseKidnap('time');
+    return;
+  }
+  if(n.gender === 'f' && elapsed > 45000){
+    releaseKidnap('time');
+    return;
+  }
+
+  // kamp dışı: kenarlara yakınlık
+  const nearEdge = n.x < 70 || n.x > MAP_W-90 || n.y < 70 || n.y > MAP_H-90;
+  if(nearEdge && !outsideTriggered){
+    outsideTriggered = true;
+    if(n.gender === 'm'){
+      // erkek sakin kurtulur
+      releaseKidnap('edge');
+    } else {
+      // kadın direnir — diyalog
+      combatLock = true;
+      talking = true;
+      currentNpc = '__kidnap_edge';
+      window._kidnapId = heldId;
+      const resist = {
+        simoni: 'Simoni ayaklarını yere bastı.\nKampın kenarındasınız.\n\n“Daha ileri gitme.\nBırak ya da… konuş.”',
+        vertimuru: 'Vertimuru gölgeyi sertleştirdi.\n\n“Dışarı mı?\nSeç: bırak veya pişman ol.”',
+        pinmy: 'Pinmy dizlerinin üzerine çöktü.\n\n“Lütfen… kampın içinde kalalım.\nNe istersen söyle, ama dışarı değil…”'
+      ,
+        nini: 'Nini seni durdurdu.\n\n“Lii, lütfen… dışarı değil.\nKonuş, ama burada.”',
+        meru: 'Meru önünü kesti.\n\n“Daha adım yok.\nBırak ya da pişman ol.”',
+        gomi: 'Gomi Meru’nun yanında durdu.\n\n“…Karışma.\nBırak.”'
+      };
+      showDialogue(n.name, resist[heldId] || 'Bırak…', null, [
+        {id:'kd_release', label:'Bırak'},
+        {id:'kd_force', label:'Zorla dışarı çıkar'},
+        {id:'kd_back', label:'Geri dön'}
+      ]);
+      hint.textContent = 'Seçim yap';
+    }
+  }
+}
+
+
+/* ===== SECRET ADMIN GATE ===== */
+(function(){
+  const ADMIN_PASS = 'peniontale';
+  const CLICK_NEED = 5;
+  const CLICK_WINDOW_MS = 5000;
+  let clicks = [];
+
+  function $(id){ return document.getElementById(id); }
+
+  function openGate(){
+    const gate = $('admin-gate');
+    const passInput = $('admin-pass');
+    const errEl = $('admin-err');
+    if(!gate) return;
+    gate.classList.add('show');
+    if(errEl) errEl.textContent = '';
+    if(passInput){
+      passInput.value = '';
+      setTimeout(function(){ try{ passInput.focus(); }catch(e){} }, 30);
+    }
+  }
+  function closeGate(){
+    const gate = $('admin-gate');
+    const passInput = $('admin-pass');
+    const errEl = $('admin-err');
+    if(gate) gate.classList.remove('show');
+    if(passInput) passInput.value = '';
+    if(errEl) errEl.textContent = '';
+  }
+  function openPanel(){
+    closeGate();
+    const panel = $('admin-panel');
+    if(panel) panel.classList.add('show');
+  }
+  function closePanel(){
+    const panel = $('admin-panel');
+    if(panel) panel.classList.remove('show');
+  }
+
+  const adminSessionLog = [];
+  function renderAdminLog(){
+    const el = $('admin-log');
+    if(!el) return;
+    el.innerHTML = adminSessionLog.slice(-8).reverse().map(function(e){
+      return '<div>» '+e.cmd+'<br>&nbsp;&nbsp;→ '+e.result+'</div>';
+    }).join('');
+  }
+  function setAdminStatus(msg, isErr){
+    const el = $('admin-status');
+    if(!el) return;
+    el.textContent = msg;
+    el.className = 'status ' + (isErr ? 'err' : 'ok');
+  }
+  function sendAdminCommand(){
+    const ta = $('admin-note');
+    const sendBtn = $('admin-send');
+    if(!ta) return;
+    const text = ta.value.trim();
+    if(!text){ setAdminStatus('Önce bir şey yaz.', true); return; }
+    if(typeof socket === 'undefined' || !socket.connected){
+      setAdminStatus('Sunucuya bağlı değil — bağlantı bekleniyor.', true);
+      return;
+    }
+    if(sendBtn) sendBtn.disabled = true;
+    setAdminStatus('Gönderiliyor…', false);
+    socket.emit('admin:command', { pass: ADMIN_PASS, text: text }, function(res){
+      if(sendBtn) sendBtn.disabled = false;
+      if(res && res.ok){
+        setAdminStatus('✓ ' + res.summary, false);
+        adminSessionLog.push({ cmd: text, result: res.summary });
+        renderAdminLog();
+        ta.value = '';
+      } else {
+        setAdminStatus('✗ ' + (res && res.error ? res.error : 'Bilinmeyen hata.'), true);
+      }
+    });
+  }
+  function tryUnlock(){
+    const passInput = $('admin-pass');
+    const errEl = $('admin-err');
+    if(!passInput) return;
+    if(passInput.value === ADMIN_PASS){
+      openPanel();
+    } else {
+      if(errEl) errEl.textContent = 'Yanlış.';
+      passInput.value = '';
+      passInput.focus();
+    }
+  }
+  function onSecretClick(e){
+    if(e){ e.preventDefault(); e.stopPropagation(); }
+    const now = Date.now();
+    clicks = clicks.filter(function(t){ return now - t < CLICK_WINDOW_MS; });
+    clicks.push(now);
+    if(clicks.length >= CLICK_NEED){
+      clicks = [];
+      openGate();
+    }
+  }
+  function bindSecretTarget(el){
+    if(!el || el._adminBound) return;
+    el._adminBound = true;
+    el.style.pointerEvents = 'auto';
+    el.style.zIndex = '50';
+    el.addEventListener('click', onSecretClick, true);
+    el.addEventListener('touchend', function(e){
+      e.preventDefault();
+      onSecretClick(e);
+    }, {passive:false});
+  }
+
+  function initAdminGate(){
+    bindSecretTarget($('minimap-label'));
+    // başlık ekranındaki h1 da gizli kapı (oyuna girmeden test)
+    var h1 = document.querySelector('#title h1');
+    bindSecretTarget(h1);
+
+    var ok = $('admin-ok');
+    var cancel = $('admin-cancel');
+    var closeBtn = $('admin-close');
+    var sendBtn = $('admin-send');
+    var passInput = $('admin-pass');
+    if(ok) ok.addEventListener('click', tryUnlock);
+    if(cancel) cancel.addEventListener('click', closeGate);
+    if(closeBtn) closeBtn.addEventListener('click', closePanel);
+    if(sendBtn) sendBtn.addEventListener('click', sendAdminCommand);
+    if(passInput){
+      passInput.addEventListener('keydown', function(e){
+        if(e.key === 'Enter'){ e.preventDefault(); tryUnlock(); }
+        if(e.key === 'Escape'){ e.preventDefault(); closeGate(); }
+      });
+    }
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', initAdminGate);
+  } else {
+    initAdminGate();
+  }
+  // start() sonrası da tekrar bağla
+  window._rebindAdminGate = initAdminGate;
+})();
+
+/* ===== REAL-TIME MULTIPLAYER ===== */
+const socket = io({ transports: ['websocket', 'polling'] });
+const remotePlayers = new Map();
+let myPlayerId = null;
+let myPlayerName = '';
+let lastNetworkX = null, lastNetworkY = null, lastNetworkFacing = null, lastNetworkAt = 0;
+const NETWORK_HZ = 20;
+
+function ensurePlayerName(){
+  if(myPlayerName) return myPlayerName;
+  const entered = prompt('Oyuncu adın:', 'Oyuncu') || 'Oyuncu';
+  myPlayerName = entered.trim().slice(0,18) || 'Oyuncu';
+  return myPlayerName;
+}
+
+function addRemotePlayer(p){
+  if(p.id === myPlayerId) return;
+  let el = remotePlayers.get(p.id);
+  if(!el){
+    el = document.createElement('div');
+    el.className='remote-player';
+    el.innerHTML='<div class="remote-avatar"></div><div class="remote-name"></div>';
+    map.appendChild(el);
+    remotePlayers.set(p.id, el);
+  }
+  el.querySelector('.remote-name').textContent=p.name;
+  el.style.left=p.x+'px'; el.style.top=p.y+'px';
+  el.dataset.facing=p.facing||'down';
+  el.style.opacity='1';
+}
+function removeRemotePlayer(id){
+  const el=remotePlayers.get(id);
+  if(el){el.remove();remotePlayers.delete(id);}
+}
+
+// ---- Yönetici panelindeki AI'nin oyuna eklediği kalıcı ilanlar (signs) ----
+const signEls = new Map();
+function addSignEl(s){
+  if(signEls.has(s.id)) return;
+  const el = document.createElement('div');
+  el.className = 'sign';
+  el.title = s.text;
+  el.style.left = s.x + 'px';
+  el.style.top = s.y + 'px';
+  el.addEventListener('click', function(){
+    showDialogue('İlan panosu ✦', s.text);
+  });
+  map.appendChild(el);
+  signEls.set(s.id, el);
+}
+function renderSigns(list){
+  (list || []).forEach(addSignEl);
+}
+function clearSignEls(){
+  signEls.forEach(function(el){ el.remove(); });
+  signEls.clear();
+}
+function renderRemotePlayers(players){
+  const seen=new Set();
+  players.forEach(p=>{ if(p.id!==myPlayerId){seen.add(p.id);addRemotePlayer(p);} });
+  for(const id of remotePlayers.keys()) if(!seen.has(id)) removeRemotePlayer(id);
+}
+function sendMovement(force=false){
+  if(!socket.connected || !myPlayerId) return;
+  const now=performance.now();
+  if(!force && now-lastNetworkAt<1000/NETWORK_HZ) return;
+  const changed=force || px!==lastNetworkX || py!==lastNetworkY || facing!==lastNetworkFacing;
+  if(!changed) return;
+  lastNetworkAt=now; lastNetworkX=px; lastNetworkY=py; lastNetworkFacing=facing;
+  socket.emit('player:move',{x:px,y:py,facing});
+}
+function showMultiplayerStatus(text){
+  let el=document.getElementById('mp-status');
+  if(!el){
+    el=document.createElement('div'); el.id='mp-status';
+    el.style.cssText='position:absolute;right:8px;top:6px;z-index:31;background:rgba(0,0,0,.72);border:1px solid #555;padding:5px 7px;font-size:8px;color:#aaa';
+    document.getElementById('viewport').appendChild(el);
+  }
+  el.textContent=text;
+}
+
+socket.on('connect',()=>{
+  myPlayerId=socket.id;
+  socket.emit('player:join',{name:ensurePlayerName(),x:px,y:py,facing});
+  showMultiplayerStatus('● ONLINE');
+  sendMovement(true);
+});
+socket.on('disconnect',()=>showMultiplayerStatus('○ BAĞLANTI KESİLDİ'));
+socket.on('world:init',data=>{
+  myPlayerId=data.you;
+  if(data.players) renderRemotePlayers(data.players);
+  if(typeof data.isNight==='boolean') setNight(data.isNight);
+  if(data.collectedStars){
+    let count=0;
+    document.querySelectorAll('.star[data-star]').forEach(el=>{
+      if(data.collectedStars[el.dataset.star]) { el.style.display='none'; count++; }
+    });
+    menctionStars=count; updateStatus();
+  }
+  if(data.signs) renderSigns(data.signs);
+});
+socket.on('world:sign', s => addSignEl(s));
+socket.on('world:signsCleared', () => clearSignEls());
+socket.on('world:players',renderRemotePlayers);
+socket.on('player:joined',p=>{ addRemotePlayer(p); showMultiplayerStatus('● ONLINE · '+(remotePlayers.size+1)+' oyuncu'); });
+socket.on('player:left',({id})=>{removeRemotePlayer(id);showMultiplayerStatus('● ONLINE · '+(remotePlayers.size+1)+' oyuncu');});
+socket.on('player:moved',p=>{addRemotePlayer(p);});
+socket.on('world:night',({isNight:serverNight})=>{ if(isNight!==serverNight){ isNight=serverNight; setNight(serverNight); } });
+socket.on('world:star',({starId,by})=>{
+  const el=document.querySelector('.star[data-star="'+CSS.escape(String(starId))+'"]');
+  if(el) el.style.display='none';
+  if(by!==myPlayerId){ menctionStars++; updateStatus(); }
+});
+socket.on('world:playerAction',a=>{
+  // Other players' interactions are represented as a short name/action bubble.
+  if(a.id===myPlayerId) return;
+  const el=remotePlayers.get(a.id);
+  if(!el) return;
+  let bubble=el.querySelector('.remote-action');
+  if(!bubble){bubble=document.createElement('div');bubble.className='remote-action';el.appendChild(bubble);}
+  bubble.textContent=a.text;
+  clearTimeout(bubble._timer); bubble._timer=setTimeout(()=>bubble.remove(),2200);
+});
+
+const originalInteract = interact;
+interact = function(){
+  const wasTalking=talking;
+  originalInteract();
+  if(!wasTalking && talking && socket.connected){
+    socket.emit('player:action',{text:'Etkileşim'});
+  }
+};
+const originalToggleNight = toggleNight;
+toggleNight = function(){
+  if(socket.connected) socket.emit('world:toggleNight');
+  else originalToggleNight();
+};
+
+const originalTryTalk = tryTalk;
+tryTalk = function(){
+  const beforeStars=menctionStars;
+  originalTryTalk();
+  if(socket.connected && menctionStars>beforeStars){
+    const last=document.querySelector('.star[data-star]:not([style*="display: none"])');
+    // The server decides the canonical star collection; find the closest hidden star.
+    const stars=[...document.querySelectorAll('.star[data-star]')];
+    const collected=stars.find(el=>el.style.display==='none' && !el.dataset.synced);
+    if(collected){collected.dataset.synced='1';socket.emit('world:collectStar',{starId:collected.dataset.star});}
+  }
+};
+
+setInterval(sendMovement,1000/NETWORK_HZ);
+
+</script>
+
+<div id="admin-gate">
+  <div class="box">
+    <h3>YÖNETİCİ</h3>
+    <input type="password" id="admin-pass" placeholder="••••••••" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div class="err" id="admin-err"></div>
+    <div class="row">
+      <button type="button" id="admin-cancel">İptal</button>
+      <button type="button" id="admin-ok">Gir</button>
+    </div>
+  </div>
+</div>
+<div id="admin-panel">
+  <div class="box">
+    <h3>YÖNETİCİ PANELİ</h3>
+    <p class="note">Ne istersen yaz, AI oyuna işler.<br>Örnek: "meydana bir ilan koy: yarın gece parti var" veya "geceye çevir".<br>Eklenen her şey kalıcıdır ve herkes görür.</p>
+    <textarea id="admin-note" placeholder="Komutunu yaz…"></textarea>
+    <div class="row">
+      <button type="button" id="admin-send">Gönder</button>
+      <button type="button" id="admin-close">Kapat</button>
+    </div>
+    <div class="status" id="admin-status"></div>
+    <div class="log" id="admin-log"></div>
+  </div>
+</div>
+
+</body>
+</html>
