@@ -22,20 +22,26 @@ const ADMIN_PASS = process.env.ADMIN_PASS || 'peniontale';
 // Gemini API ayarları (ücretsiz, kredi kartı istemez) — Render'da GEMINI_API_KEY env değişkenini eklemen ZORUNLU.
 // Key almak için: aistudio.google.com -> "Get API key".
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 
 const players = new Map();
 
 // ---- Kalıcı dünya durumu (disk üzerinde JSON dosyası) ----
 const STATE_FILE = path.join(__dirname, 'world-state.json');
 const MAX_SIGNS = 40;
+const MAX_NPCS = 20;
+const MAX_PHOTOS = 15;
 const MAX_LOG = 60;
+const MAX_PHOTO_BYTES = 180000; // ~180KB base64
 
 let world = {
   isNight: false,
   collectedStars: Object.create(null),
-  signs: [],        // [{id, text, x, y, ts}]  -> AI'nin oyuna eklediği kalıcı ilan panoları
-  adminLog: []       // [{ts, cmd, resultSummary}] -> panelde geçmişi görmek için
+  signs: [],
+  customNpcs: [],
+  photos: [],
+  adminLog: [],
+  visitors: {}  // deviceId -> {id,name,firstSeen,lastSeen,visits,actions:[]}
 };
 
 function loadWorld() {
@@ -45,7 +51,10 @@ function loadWorld() {
     world.isNight = !!saved.isNight;
     world.collectedStars = saved.collectedStars || Object.create(null);
     world.signs = Array.isArray(saved.signs) ? saved.signs : [];
+    world.customNpcs = Array.isArray(saved.customNpcs) ? saved.customNpcs : [];
+    world.photos = Array.isArray(saved.photos) ? saved.photos : [];
     world.adminLog = Array.isArray(saved.adminLog) ? saved.adminLog : [];
+    world.visitors = (saved.visitors && typeof saved.visitors === 'object') ? saved.visitors : {};
   } catch (e) {
     // Dosya yok veya bozuk — sıfırdan başla.
   }
@@ -61,7 +70,9 @@ function saveWorld() {
 loadWorld();
 
 app.use(express.static(path.join(__dirname)));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'Peniontale_Multiplayer.html')));
+// Ana sayfa dosya adı (GitHub'daki HTML adıyla aynı olmalı)
+const HTML_FILE = process.env.HTML_FILE || 'Peniontale_Multiplayer-17.html';
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, HTML_FILE)));
 
 function clamp(v, min, max){ return Math.max(min, Math.min(max, Number(v) || 0)); }
 function cleanName(v){
@@ -97,6 +108,55 @@ function clearSigns(){
   saveWorld();
   io.emit('world:signsCleared');
 }
+
+function addCustomNpc(data){
+  const name = cleanText(data.name || 'Yeni', 24) || 'Yeni';
+  const lines = Array.isArray(data.lines) ? data.lines.map(l => cleanText(l, 120)).filter(Boolean).slice(0, 6) : [];
+  if (!lines.length) lines.push(name + ' burada.');
+  const letter = cleanText(data.letter || name.charAt(0), 2) || '?';
+  const color = cleanText(data.color || '#a29bfe', 20) || '#a29bfe';
+  const npc = {
+    id: 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
+    name, letter, color, lines,
+    x: clamp(data.x != null ? data.x : (400 + Math.random()*400), 80, MAP_W - 80),
+    y: clamp(data.y != null ? data.y : (200 + Math.random()*400), 80, MAP_H - 80),
+    ts: Date.now()
+  };
+  world.customNpcs.push(npc);
+  if (world.customNpcs.length > MAX_NPCS) world.customNpcs.shift();
+  saveWorld();
+  io.emit('world:customNpc', npc);
+  return npc;
+}
+function addPhoto(dataUrl, caption, x, y){
+  const raw = String(dataUrl || '');
+  if (!raw.startsWith('data:image/')) throw new Error('Geçersiz görsel.');
+  if (raw.length > MAX_PHOTO_BYTES) throw new Error('Fotoğraf çok büyük (max ~120KB).');
+  const photo = {
+    id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
+    dataUrl: raw,
+    caption: cleanText(caption, 80),
+    x: clamp(x != null ? x : (MAP_W/2 + (Math.random()-0.5)*300), 80, MAP_W - 80),
+    y: clamp(y != null ? y : (MAP_H/2 + (Math.random()-0.5)*200), 80, MAP_H - 80),
+    ts: Date.now()
+  };
+  world.photos.push(photo);
+  if (world.photos.length > MAX_PHOTOS) world.photos.shift();
+  saveWorld();
+  io.emit('world:photo', { id: photo.id, x: photo.x, y: photo.y, caption: photo.caption, dataUrl: photo.dataUrl });
+  return photo;
+}
+function clearCustomNpcs(){
+  world.customNpcs = [];
+  saveWorld();
+  io.emit('world:customNpcsCleared');
+}
+function clearPhotos(){
+  world.photos = [];
+  saveWorld();
+  io.emit('world:photosCleared');
+}
+
 function pushLog(cmd, summary){
   world.adminLog.push({ ts: Date.now(), cmd: cleanText(cmd, 200), resultSummary: cleanText(summary, 200) });
   if (world.adminLog.length > MAX_LOG) world.adminLog.shift();
@@ -104,49 +164,102 @@ function pushLog(cmd, summary){
 }
 
 // ---- Claude API ile komutu bir oyun eylemine çevir ----
-const ALLOWED_ACTIONS = new Set(['sign', 'toggle_night', 'clear_signs']);
+const ALLOWED_ACTIONS = new Set(['sign', 'toggle_night', 'clear_signs', 'add_npc', 'clear_npcs', 'clear_photos']);
 
-const SYSTEM_PROMPT = `Sen PENIONTALE adlı bir 2D oyunun gizli yönetici panelinin arkasında çalışan bir motor-asistanısın.
-Yönetici sana Türkçe (veya başka bir dilde) serbest metinli bir komut yazacak.
-Bu komutu, oyuna uygulanacak TEK bir JSON eylemine çevir. SADECE geçerli JSON döndür — açıklama, markdown, kod bloğu, tırnak dışı metin YOK.
+const SYSTEM_PROMPT = `Sen PENIONTALE (Hero Kampı) 2D piksel RPG oyununun gizli yönetici motorusun.
+Yönetici Türkçe serbest komut yazar. SADECE tek bir geçerli JSON döndür. Markdown/kod bloğu/açıklama YOK.
 
-İzin verilen eylemler:
-1. {"action":"sign","text":"..."} — Oyun haritasına AI'nin ürettiği kısa (en fazla 140 karakter) bir ilan/duyuru panosu ekler. Bu, "oyuna bir şey ekle" türündeki her komut için varsayılan eylemdir: komutun anlamını oyunun fantastik/sıcak tarzına uygun kısa bir duyuru metnine çevir.
-2. {"action":"toggle_night"} — Sadece komut açıkça gece/gündüz değiştirmeyi istiyorsa kullan.
-3. {"action":"clear_signs"} — Sadece komut açıkça tüm ilanları/panoları temizlemeyi istiyorsa kullan.
+Eylemler:
+1. NPC ekle (öncelik: komut "npc", "karakter", "kişi ekle" diyorsa BUNU kullan, asla sign yapma):
+{"action":"add_npc","name":"İsim","letter":"A","color":"#hex","lines":["diyalog1","diyalog2","diyalog3"]}
+- name zorunlu (max 24). letter 1-2 harf. color CSS hex.
+- lines: 2-4 kısa Türkçe diyalog, oyunun sıcak/fantastik tonunda, karakter kişiliğine uygun.
+- Örnek: "oyunu özetleyen npc ekle" → name:"Anlatıcı", lines oyun özeti gibi.
 
-Emin değilsen ya da komut bu üç tipe net biçimde uymuyorsa, her zaman "sign" eylemini seç ve komutun içeriğini kısa bir duyuru metni haline getir. Böylece her komut oyuna görünür bir şekilde yansır. Yanıtın SADECE JSON olsun, başka hiçbir şey ekleme.`;
+2. İlan/duyuru (sadece ilan, pano, duyuru, yazı isteniyorsa):
+{"action":"sign","text":"kısa duyuru max 140 karakter"}
+
+3. {"action":"toggle_night"} — sadece gece/gündüz denirse.
+
+4. {"action":"clear_signs"} — ilanları temizle.
+5. {"action":"clear_npcs"} — eklenen özel NPC'leri temizle.
+6. {"action":"clear_photos"} — fotoğrafları temizle.
+
+Kural: NPC isteniyorsa add_npc. Sadece "ilan koy" / "duyuru" ise sign. Emin değilsen ve karakter kastediliyorsa add_npc seç.`;
 
 async function interpretCommand(text) {
+  // API yoksa veya her türlü hata: ham metni ilan yap — panel ASLA kilitlenmesin
+  const asSign = () => ({ action: 'sign', text, _fallback: true });
+
   if (!GEMINI_API_KEY) {
-    // API anahtarı yoksa: en azından ham metni doğrudan ilan olarak ekle, sistem çökmesin.
-    return { action: 'sign', text, _fallback: 'no_api_key' };
+    console.warn('GEMINI_API_KEY yok — ham ilan');
+    return asSign();
   }
+
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL + ':generateContent?key=' + GEMINI_API_KEY;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ role: 'user', parts: [{ text: text }] }],
-      generationConfig: { maxOutputTokens: 300 }
-    })
-  });
+
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: [{ role: 'user', parts: [{ text: text }] }],
+        generationConfig: {
+          maxOutputTokens: 512,
+          temperature: 0.2,
+          responseMimeType: 'application/json'
+        }
+      })
+    });
+  } catch (e) {
+    console.warn('Gemini fetch hata:', e.message);
+    return asSign();
+  }
+
   if (!res.ok) {
     const errBody = await res.text().catch(() => '');
-    throw new Error('Gemini API hatası ' + res.status + ': ' + errBody.slice(0, 200));
+    console.warn('Gemini HTTP', res.status, errBody.slice(0, 150));
+    // 503 / 429 / 404 / her şey → ilan fallback, kullanıcıya kırmızı hata yok
+    return asSign();
   }
-  const data = await res.json();
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (e) {
+    console.warn('Gemini JSON body okunamadı');
+    return asSign();
+  }
+
   const raw = ((data.candidates || [])[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
-  const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Gemini JSON döndürmedi: ' + raw.slice(0, 120));
-  let parsed;
-  try { parsed = JSON.parse(jsonMatch[0]); }
-  catch (e) { throw new Error('JSON parse edilemedi: ' + raw.slice(0, 120)); }
-  if (!parsed || !ALLOWED_ACTIONS.has(parsed.action)) {
-    // Beklenmeyen bir şey döndüyse yine de kaybetme, ilan olarak ekle.
-    return { action: 'sign', text, _fallback: 'invalid_action' };
+  if (!raw) return asSign();
+
+  function tryParse(str) {
+    try { return JSON.parse(str); } catch (e) { return null; }
   }
+
+  let parsed = tryParse(raw);
+  if (!parsed) {
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    parsed = tryParse(cleaned);
+  }
+  if (!parsed) {
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (m) parsed = tryParse(m[0]);
+  }
+  if (!parsed) {
+    const m = raw.match(/"action"\s*:\s*"(\w+)"[\s\S]*?"text"\s*:\s*"([^"]*)/);
+    if (m && ALLOWED_ACTIONS.has(m[1])) {
+      parsed = { action: m[1], text: m[2] || text };
+    }
+  }
+
+  if (!parsed || !ALLOWED_ACTIONS.has(parsed.action)) {
+    return asSign();
+  }
+  if (parsed.action === 'sign' && !parsed.text) parsed.text = text;
   return parsed;
 }
 
@@ -159,6 +272,10 @@ function applyAction(action) {
       const sign = addSign(action.text, cx, cy);
       return 'İlan eklendi: "' + sign.text + '"';
     }
+    case 'add_npc': {
+      const npc = addCustomNpc(action);
+      return 'NPC eklendi: ' + npc.name + ' (E ile konuş)';
+    }
     case 'toggle_night': {
       world.isNight = !world.isNight;
       saveWorld();
@@ -169,12 +286,94 @@ function applyAction(action) {
       clearSigns();
       return 'Tüm ilanlar temizlendi.';
     }
+    case 'clear_npcs': {
+      clearCustomNpcs();
+      return "Özel NPC ler temizlendi.";
+    }
+    case 'clear_photos': {
+      clearPhotos();
+      return 'Fotoğraflar temizlendi.';
+    }
     default:
       return 'Bilinmeyen eylem.';
   }
 }
 
 // Basit hız sınırlama: aynı bağlantı 4 saniyede bir komut gönderebilir.
+
+const MAX_ACTIONS_PER_VISITOR = 80;
+
+function touchVisitor(deviceId, name) {
+  const id = cleanText(deviceId || '', 40) || ('anon' + Date.now());
+  const nm = cleanName(name);
+  let v = world.visitors[id];
+  const now = Date.now();
+  if (!v) {
+    v = { id, name: nm, firstSeen: now, lastSeen: now, visits: 1, actions: [] };
+    world.visitors[id] = v;
+  } else {
+    v.name = nm || v.name;
+    v.lastSeen = now;
+    v.visits = (v.visits || 0) + 1;
+  }
+  saveWorld();
+  return v;
+}
+
+function pushVisitorAction(deviceId, name, type, detail, x, y) {
+  const id = cleanText(deviceId || '', 40);
+  if (!id) return;
+  let v = world.visitors[id];
+  if (!v) v = touchVisitor(id, name);
+  else {
+    v.name = cleanName(name) || v.name;
+    v.lastSeen = Date.now();
+  }
+  v.actions = v.actions || [];
+  v.actions.push({
+    ts: Date.now(),
+    type: cleanText(type, 24) || 'act',
+    detail: detail && typeof detail === 'object' ? detail : {},
+    x: clamp(x, 0, MAP_W),
+    y: clamp(y, 0, MAP_H)
+  });
+  if (v.actions.length > MAX_ACTIONS_PER_VISITOR) {
+    v.actions = v.actions.slice(-MAX_ACTIONS_PER_VISITOR);
+  }
+  saveWorld();
+}
+
+function rangeMs(range) {
+  const map = {
+    '1h': 3600000,
+    '1d': 86400000,
+    '7d': 604800000,
+    '30d': 2592000000,
+    '365d': 31536000000,
+    'all': 0
+  };
+  return map[range] != null ? map[range] : map['1d'];
+}
+
+function listVisitors(range) {
+  const ms = rangeMs(range);
+  const now = Date.now();
+  const arr = Object.values(world.visitors || {});
+  return arr
+    .filter(v => !ms || (now - (v.lastSeen || 0) <= ms))
+    .sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0))
+    .slice(0, 100)
+    .map(v => ({
+      id: v.id,
+      name: v.name,
+      firstSeen: v.firstSeen,
+      lastSeen: v.lastSeen,
+      visits: v.visits,
+      recentActions: (v.actions || []).slice(-12).reverse()
+    }));
+}
+
+
 const lastAdminCmdAt = new Map();
 
 io.on('connection', socket => {
@@ -188,13 +387,16 @@ io.on('connection', socket => {
       facing: ['up','down','left','right'].includes(data?.facing) ? data.facing : 'down'
     };
     players.set(socket.id, p);
+    if (data?.deviceId) touchVisitor(data.deviceId, p.name);
 
     socket.emit('world:init', {
       you: socket.id,
       players: [...players.values()].map(publicPlayer),
       isNight: world.isNight,
       collectedStars: world.collectedStars,
-      signs: world.signs
+      signs: world.signs,
+      customNpcs: world.customNpcs,
+      photos: world.photos
     });
     socket.broadcast.emit('player:joined', publicPlayer(p));
     broadcastPlayers();
@@ -250,13 +452,76 @@ io.on('connection', socket => {
       }
       lastAdminCmdAt.set(socket.id, now);
 
-      const action = await interpretCommand(text);
+      let action;
+      const low = text.toLowerCase();
+      // Hızlı yol: NPC isteniyorsa AI'ye bırakmadan da net istek
+      if (/\b(npc|karakter|kişi ekle|biri ekle)\b/i.test(text) && !/ilan|duyuru|pano|temizle|gece|gündüz/.test(low)) {
+        action = await interpretCommand(text);
+        if (!action || action.action !== 'add_npc') {
+          // AI sign döndürdüyse zorla npc iskeleti
+          action = {
+            action: 'add_npc',
+            name: (action && action.text) ? String(action.text).slice(0, 24) : 'Yeni Karakter',
+            letter: '?',
+            color: '#a29bfe',
+            lines: [
+              'Merhaba. Ben yeni bir kamp sakiniyim.',
+              cleanText(text, 100),
+              'Hero Kampı… ilginç bir yer.'
+            ]
+          };
+          // isim düzelt
+          if (action.name.length > 20 || action.name.includes(' ')) {
+            /* keep */
+          }
+        }
+      } else {
+        action = await interpretCommand(text);
+      }
       const summary = applyAction(action);
       pushLog(text, summary);
       ack({ ok: true, summary, action: action.action });
     } catch (e) {
       console.error('admin:command hata:', e.message);
       ack({ ok: false, error: 'Hata: ' + e.message });
+    }
+  });
+
+
+  socket.on('player:log', data => {
+    try {
+      if (!players.has(socket.id)) return;
+      pushVisitorAction(
+        data?.deviceId,
+        data?.name || players.get(socket.id)?.name,
+        data?.type,
+        data?.detail,
+        data?.x,
+        data?.y
+      );
+    } catch (e) { console.warn('player:log', e.message); }
+  });
+
+  socket.on('admin:visitors', (data, callback) => {
+    const ack = typeof callback === 'function' ? callback : () => {};
+    try {
+      if (!data || data.pass !== ADMIN_PASS) return ack({ ok: false, error: 'Yanlış şifre.' });
+      const range = data.range || '1d';
+      ack({ ok: true, visitors: listVisitors(range) });
+    } catch (e) {
+      ack({ ok: false, error: e.message || 'Hata' });
+    }
+  });
+
+  socket.on('admin:photo', (data, callback) => {
+    const ack = typeof callback === 'function' ? callback : () => {};
+    try {
+      if (!data || data.pass !== ADMIN_PASS) return ack({ ok: false, error: 'Yanlış şifre.' });
+      const photo = addPhoto(data.dataUrl, data.caption || '', data.x, data.y);
+      pushLog('[foto]', 'Foto eklendi ' + photo.id);
+      ack({ ok: true, summary: 'Fotoğraf haritaya eklendi.' });
+    } catch (e) {
+      ack({ ok: false, error: e.message || 'Foto eklenemedi.' });
     }
   });
 
@@ -270,6 +535,10 @@ io.on('connection', socket => {
 
 server.listen(PORT, () => {
   console.log(`Peniontale multiplayer server: http://localhost:${PORT}`);
+  if (!GEMINI_API_KEY) {
+    console.warn('UYARI: GEMINI_API_KEY tanımlı değil — admin paneldeki AI, komutları ham ilan metni olarak ekleyecek (Gemini yorumlaması olmadan).');
+  }
+});ale multiplayer server: http://localhost:${PORT}`);
   if (!GEMINI_API_KEY) {
     console.warn('UYARI: GEMINI_API_KEY tanımlı değil — admin paneldeki AI, komutları ham ilan metni olarak ekleyecek (Gemini yorumlaması olmadan).');
   }
